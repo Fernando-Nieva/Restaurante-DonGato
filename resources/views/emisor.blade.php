@@ -7,48 +7,146 @@
 @vite(['resources/css/app.css','resources/js/app.js'])
 <style>
 * { box-sizing: border-box; }
+
+:root {
+    /* Light theme (default) */
+    --bg-primary: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+    --bg-card: #ffffff;
+    --bg-card-hover: #fafafa;
+    --bg-input: #fafafa;
+    --bg-input-focus: #ffffff;
+    --bg-preset: #f3f4f6;
+    --bg-preset-hover: #e5e7eb;
+    --bg-badge: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text-primary: #1a1f36;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --text-label: #374151;
+    --text-input: #1f2937;
+    --border-color: #e5e7eb;
+    --border-focus: #667eea;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-md: 0 10px 40px rgba(0,0,0,0.08);
+    --shadow-glow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    --success-bg: #ecfdf5;
+    --success-border: #a7f3d0;
+    --success-text: #065f46;
+    --error-bg: #fef2f2;
+    --error-border: #fecaca;
+    --error-text: #991b1b;
+    --footer-code-bg: #f3f4f6;
+}
+
+[data-theme="dark"] {
+    --bg-primary: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --bg-card: #1e293b;
+    --bg-card-hover: #334155;
+    --bg-input: #0f172a;
+    --bg-input-focus: #1e293b;
+    --bg-preset: #334155;
+    --bg-preset-hover: #475569;
+    --bg-badge: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-label: #e2e8f0;
+    --text-input: #f1f5f9;
+    --border-color: #334155;
+    --border-focus: #a855f7;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+    --shadow-md: 0 10px 40px rgba(0,0,0,0.3);
+    --shadow-glow: 0 4px 14px rgba(139, 92, 246, 0.4);
+    --success-bg: #064e3b;
+    --success-border: #065f46;
+    --success-text: #a7f3d0;
+    --error-bg: #7f1d1d;
+    --error-border: #991b1b;
+    --error-text: #fca5a5;
+    --footer-code-bg: #1e293b;
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+    background: var(--bg-primary);
     min-height: 100vh;
     padding: 40px 20px;
     margin: 0;
+    color: var(--text-primary);
+    transition: background 0.3s ease, color 0.3s ease;
 }
+
 .wrap { max-width: 800px; margin: 0 auto; }
+
 .card {
-    background: white;
+    background: var(--bg-card);
     border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+    box-shadow: var(--shadow-md), var(--shadow-sm);
     padding: 40px;
-    border: 1px solid rgba(255,255,255,0.5);
+    border: 1px solid var(--border-color);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
+
 .header {
     text-align: center;
     margin-bottom: 36px;
+    position: relative;
 }
+
 .header h1 {
     font-size: 2.5rem;
     font-weight: 800;
-    color: #1a1f36;
+    color: var(--text-primary);
     margin: 0 0 8px;
     letter-spacing: -0.02em;
 }
+
 .header .subtitle {
-    color: #6b7280;
+    color: var(--text-secondary);
     font-size: 1.1rem;
     font-weight: 400;
 }
+
+.theme-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-input);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+}
+
+.theme-toggle:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-focus);
+    transform: scale(1.05);
+}
+
+.theme-toggle svg { width: 22px; height: 22px; }
+
+.theme-toggle .sun-icon { display: none; }
+[data-theme="dark"] .theme-toggle .sun-icon { display: block; }
+[data-theme="dark"] .theme-toggle .moon-icon { display: none; }
+
 .badge {
     display: inline-block;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-badge);
     color: white;
     padding: 6px 16px;
     border-radius: 100px;
     font-size: 0.8rem;
     font-weight: 600;
     margin-top: 12px;
-    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    box-shadow: var(--shadow-glow);
 }
+
 .alert {
     padding: 16px 20px;
     border-radius: 12px;
@@ -58,42 +156,55 @@ body {
     align-items: center;
     gap: 10px;
 }
+
 .alert-success {
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
-    color: #065f46;
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    color: var(--success-text);
 }
+
 .alert-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #991b1b;
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    color: var(--error-text);
 }
+
 .form-group { margin-bottom: 24px; }
+
 .form-group label {
     display: block;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-label);
     margin-bottom: 8px;
     font-size: 0.95rem;
 }
+
 .form-group input,
 .form-group textarea {
     width: 100%;
     padding: 14px 18px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border-color);
     border-radius: 12px;
     font-size: 1rem;
     font-family: inherit;
     transition: all 0.2s ease;
-    background: #fafafa;
+    background: var(--bg-input);
+    color: var(--text-input);
 }
+
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #667eea;
-    background: white;
+    border-color: var(--border-focus);
+    background: var(--bg-input-focus);
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group textarea:focus {
+    box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.15);
+}
+
 .form-group textarea {
     min-height: 140px;
     resize: vertical;
@@ -101,12 +212,15 @@ body {
     font-size: 0.9rem;
     line-height: 1.6;
 }
+
 .form-row { display: grid; gap: 20px; }
+
 @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+
 .btn {
     width: 100%;
     padding: 16px 28px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-badge);
     color: white;
     border: none;
     border-radius: 12px;
@@ -114,53 +228,75 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    box-shadow: var(--shadow-glow);
 }
+
 .btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
 }
+
+[data-theme="dark"] .btn:hover {
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5);
+}
+
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
 .footer {
     text-align: center;
     margin-top: 28px;
-    color: #9ca3af;
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
+
 .footer code {
-    background: #f3f4f6;
+    background: var(--footer-code-bg);
     padding: 4px 10px;
     border-radius: 6px;
     font-family: 'Monaco', monospace;
     font-size: 0.85rem;
+    border: 1px solid var(--border-color);
 }
+
 .presets {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 12px;
 }
+
 .preset-btn {
     padding: 8px 16px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-preset);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     font-size: 0.85rem;
-    color: #4b5563;
+    color: var(--text-label);
     cursor: pointer;
     transition: all 0.2s;
 }
+
 .preset-btn:hover {
-    background: #e5e7eb;
-    border-color: #d1d5db;
+    background: var(--bg-preset-hover);
+    border-color: var(--border-focus);
 }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
     <div class="card">
         <div class="header">
+            <button class="theme-toggle" id="themeToggle" aria-label="Alternar modo oscuro" title="Alternar tema">
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            </button>
             <h1>Panel de Emisión</h1>
             <p class="subtitle">Envía mensajes en tiempo real al receptor</p>
             <span class="badge">WebSocket Activo</span>
@@ -213,6 +349,28 @@ body {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+
+    function initTheme() {
+        const saved = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (prefersDark ? 'dark' : 'light');
+        html.setAttribute('data-theme', theme);
+    }
+
+    function toggleTheme() {
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    }
+
+    initTheme();
+    themeToggle.addEventListener('click', toggleTheme);
+
+    // Presets
     const styleInput = document.getElementById('newStyle');
     document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -221,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Form loading state
     const form = document.getElementById('emitForm');
     const btnText = document.getElementById('btnText');
     const btnLoader = document.getElementById('btnLoader');

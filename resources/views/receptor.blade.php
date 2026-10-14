@@ -9,30 +9,149 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
 * { box-sizing: border-box; }
+
+:root {
+    /* Light theme (default) */
+    --bg-primary: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+    --bg-card: #ffffff;
+    --bg-card-hover: #fafafa;
+    --bg-current-empty: #fafafa;
+    --bg-current-content: #ffffff;
+    --bg-history-item: #fafafa;
+    --bg-history-hover: #f5f7fa;
+    --bg-history-content: #ffffff;
+    --bg-badge: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --bg-badge-hover: 0 8px 24px rgba(102, 126, 234, 0.5);
+    --bg-status-connected: #ecfdf5;
+    --text-status-connected: #065f46;
+    --border-status-connected: #a7f3d0;
+    --bg-status-disconnected: #fef2f2;
+    --text-status-disconnected: #991b1b;
+    --border-status-disconnected: #fecaca;
+    --bg-clear-btn: #fef2f2;
+    --text-clear-btn: #991b1b;
+    --border-clear-btn: #fecaca;
+    --bg-clear-hover: #fee2e2;
+    --border-clear-hover: #fca5a5;
+    --text-primary: #1a1f36;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --text-label: #374151;
+    --text-history: #374151;
+    --text-placeholder: #9ca3af;
+    --text-time: #6b7280;
+    --bg-time: #e5e7eb;
+    --bg-live-badge: #ecfdf5;
+    --text-live-badge: #065f46;
+    --border-color: #f1f5f9;
+    --border-hover: #e2e8f0;
+    --border-card: rgba(255,255,255,0.5);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-md: 0 10px 40px rgba(0,0,0,0.08);
+    --footer-color: #9ca3af;
+}
+
+[data-theme="dark"] {
+    --bg-primary: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --bg-card: #1e293b;
+    --bg-card-hover: #334155;
+    --bg-current-empty: #1e293b;
+    --bg-current-content: #1e293b;
+    --bg-history-item: #1e293b;
+    --bg-history-hover: #334155;
+    --bg-history-content: #0f172a;
+    --bg-badge: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    --bg-badge-hover: 0 8px 24px rgba(139, 92, 246, 0.5);
+    --bg-status-connected: #064e3b;
+    --text-status-connected: #a7f3d0;
+    --border-status-connected: #065f46;
+    --bg-status-disconnected: #7f1d1d;
+    --text-status-disconnected: #fca5a5;
+    --border-status-disconnected: #991b1b;
+    --bg-clear-btn: #7f1d1d;
+    --text-clear-btn: #fca5a5;
+    --border-clear-btn: #991b1b;
+    --bg-clear-hover: #991b1d;
+    --border-clear-hover: #fca5a5;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-label: #e2e8f0;
+    --text-history: #f1f5f9;
+    --text-placeholder: #64748b;
+    --text-time: #94a3b8;
+    --bg-time: #334155;
+    --bg-live-badge: #064e3b;
+    --text-live-badge: #a7f3d0;
+    --border-color: #334155;
+    --border-hover: #475569;
+    --border-card: #334155;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+    --shadow-md: 0 10px 40px rgba(0,0,0,0.3);
+    --footer-color: #64748b;
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+    background: var(--bg-primary);
     min-height: 100vh;
     padding: 40px 20px;
     margin: 0;
+    color: var(--text-primary);
+    transition: background 0.3s ease, color 0.3s ease;
 }
+
 .wrap { max-width: 900px; margin: 0 auto; }
+
 .header {
     text-align: center;
     margin-bottom: 32px;
+    position: relative;
 }
+
 .header h1 {
     font-size: 2.5rem;
     font-weight: 800;
-    color: #1a1f36;
+    color: var(--text-primary);
     margin: 0 0 8px;
     letter-spacing: -0.02em;
 }
+
 .header .subtitle {
-    color: #6b7280;
+    color: var(--text-secondary);
     font-size: 1.1rem;
     font-weight: 400;
 }
+
+.theme-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+}
+
+.theme-toggle:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--bg-badge);
+    transform: scale(1.05);
+}
+
+.theme-toggle svg { width: 22px; height: 22px; }
+
+.theme-toggle .sun-icon { display: none; }
+[data-theme="dark"] .theme-toggle .sun-icon { display: block; }
+[data-theme="dark"] .theme-toggle .moon-icon { display: none; }
+
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -42,17 +161,22 @@ body {
     font-size: 0.85rem;
     font-weight: 600;
     margin-top: 16px;
+    border: 1px solid;
+    transition: all 0.3s ease;
 }
+
 .status-badge.connected {
-    background: #ecfdf5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
+    background: var(--bg-status-connected);
+    color: var(--text-status-connected);
+    border-color: var(--border-status-connected);
 }
+
 .status-badge.disconnected {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    background: var(--bg-status-disconnected);
+    color: var(--text-status-disconnected);
+    border-color: var(--border-status-disconnected);
 }
+
 .status-badge .dot {
     width: 8px;
     height: 8px;
@@ -60,31 +184,38 @@ body {
     background: currentColor;
     animation: pulse 2s infinite;
 }
+
 .status-badge.disconnected .dot { animation: none; }
+
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 .main-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: var(--shadow-md), var(--shadow-sm);
+    border: 1px solid var(--border-card);
     overflow: hidden;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
+
 .current-message {
     padding: 40px;
     min-height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .current-message.empty {
-    background: #fafafa;
+    background: var(--bg-current-empty);
 }
+
 .current-message.has-content {
-    background: white;
+    background: var(--bg-current-content);
 }
+
 .message-content {
     width: 100%;
     padding: 32px;
@@ -96,12 +227,14 @@ body {
     word-wrap: break-word;
     animation: fadeIn 0.4s ease;
 }
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
 .placeholder-text {
-    color: #9ca3af;
+    color: var(--text-placeholder);
     font-size: 1.1rem;
     font-weight: 400;
 }
@@ -109,6 +242,7 @@ body {
 .history-section {
     padding: 32px 40px;
 }
+
 .history-header {
     display: flex;
     justify-content: space-between;
@@ -117,37 +251,45 @@ body {
     flex-wrap: wrap;
     gap: 12px;
 }
+
 .history-header h2 {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1a1f36;
+    color: var(--text-primary);
     margin: 0;
     display: flex;
     align-items: center;
     gap: 10px;
 }
+
 .history-header h2::before {
     content: '';
     width: 4px;
     height: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-badge);
     border-radius: 2px;
 }
+
 .clear-btn {
     padding: 10px 20px;
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    background: var(--bg-clear-btn);
+    color: var(--text-clear-btn);
+    border: 1px solid var(--border-clear-btn);
     border-radius: 10px;
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
+
 .clear-btn:hover {
-    background: #fee2e2;
-    border-color: #fca5a5;
+    background: var(--bg-clear-hover);
+    border-color: var(--border-clear-hover);
 }
+
 .history-list {
     list-style: none;
     padding: 0;
@@ -155,25 +297,30 @@ body {
     max-height: 400px;
     overflow-y: auto;
 }
+
 .history-item {
-    background: #fafafa;
-    border: 1px solid #f1f5f9;
+    background: var(--bg-history-item);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 20px 24px;
     margin-bottom: 12px;
     transition: all 0.2s;
     animation: slideIn 0.3s ease;
 }
+
 @keyframes slideIn {
     from { opacity: 0; transform: translateX(-10px); }
     to { opacity: 1; transform: translateX(0); }
 }
+
 .history-item:hover {
-    background: #f5f7fa;
-    border-color: #e2e8f0;
+    background: var(--bg-history-hover);
+    border-color: var(--border-hover);
     transform: translateX(4px);
 }
+
 .history-item:last-child { margin-bottom: 0; }
+
 .history-item-header {
     display: flex;
     justify-content: space-between;
@@ -182,15 +329,17 @@ body {
     flex-wrap: wrap;
     gap: 8px;
 }
+
 .history-item-time {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #6b7280;
-    background: #e5e7eb;
+    color: var(--text-time);
+    background: var(--bg-time);
     padding: 4px 10px;
     border-radius: 100px;
     font-variant-numeric: tabular-nums;
 }
+
 .history-item-badge {
     display: inline-flex;
     align-items: center;
@@ -202,45 +351,61 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+
 .history-item-badge.live {
-    background: #ecfdf5;
-    color: #065f46;
+    background: var(--bg-live-badge);
+    color: var(--text-live-badge);
 }
+
 .history-item-content {
     font-family: 'Monaco', 'Menlo', monospace;
     font-size: 0.9rem;
     line-height: 1.6;
-    color: #374151;
+    color: var(--text-history);
     white-space: pre-wrap;
     word-wrap: break-word;
-    background: white;
+    background: var(--bg-history-content);
     padding: 16px;
     border-radius: 8px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--border-color);
 }
+
 .empty-history {
     text-align: center;
     padding: 40px 20px;
-    color: #9ca3af;
+    color: var(--text-muted);
 }
+
 .empty-history svg { margin-bottom: 12px; opacity: 0.5; }
+
 .footer {
     text-align: center;
     margin-top: 24px;
-    color: #9ca3af;
+    color: var(--footer-color);
     font-size: 0.85rem;
 }
+
 @media (max-width: 640px) {
     .current-message { padding: 24px; }
     .message-content { padding: 20px; font-size: 1.2rem; }
     .history-section { padding: 24px; }
     .header h1 { font-size: 2rem; }
 }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
     <div class="header">
+        <button class="theme-toggle" id="themeToggle" aria-label="Alternar modo oscuro" title="Alternar tema">
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
         <h1>Panel de Recepción</h1>
         <p class="subtitle">Visualiza mensajes en tiempo real con historial</p>
         <div class="status-badge disconnected" id="statusBadge">
@@ -279,6 +444,28 @@ body {
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+
+    function initTheme() {
+        const saved = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (prefersDark ? 'dark' : 'light');
+        html.setAttribute('data-theme', theme);
+    }
+
+    function toggleTheme() {
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    }
+
+    initTheme();
+    themeToggle.addEventListener('click', toggleTheme);
+
+    // Resto del código existente
     const currentMessage = document.getElementById('currentMessage');
     const messageContent = document.getElementById('messageContent');
     const historyList = document.getElementById('historyList');
@@ -287,7 +474,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusBadge = document.getElementById('statusBadge');
     const statusText = document.getElementById('statusText');
 
-    // Cargar historial desde localStorage
     function loadHistory() {
         const stored = localStorage.getItem('messageHistory');
         if (stored) {
@@ -331,11 +517,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    // Inicializar historial
     const history = loadHistory();
     renderHistory(history);
 
-    // Mostrar último mensaje si existe
     if (history.length > 0) {
         const last = history[history.length - 1];
         messageContent.textContent = last.text;
@@ -349,7 +533,6 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.removeItem('messageHistory');
             history.length = 0;
             renderHistory([]);
-            // No limpiar el mensaje actual, solo el historial
         }
     });
 
@@ -364,7 +547,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     const text = e.newText ?? '';
                     const style = e.newStyle ?? '';
 
-                    // Actualizar mensaje actual con animación
                     currentMessage.classList.remove('has-content');
                     currentMessage.classList.add('empty');
                     setTimeout(() => {
@@ -374,7 +556,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         currentMessage.classList.add('has-content');
                     }, 100);
 
-                    // Agregar al historial
                     const now = new Date();
                     const newMsg = {
                         text: text,
@@ -384,17 +565,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         isCurrent: true
                     };
 
-                    // Marcar anterior como no actual
                     history.forEach(h => h.isCurrent = false);
                     history.push(newMsg);
 
-                    // Mantener solo últimos 50
                     if (history.length > 50) history.shift();
 
                     saveHistory(history);
                     renderHistory(history);
 
-                    // SweetAlert toast
+                    // SweetAlert toast con colores adaptativos
+                    const isDark = html.getAttribute('data-theme') === 'dark';
                     Swal.fire({
                         toast: true,
                         position: 'top-end',
@@ -403,9 +583,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         showConfirmButton: false,
                         timer: 3000,
                         timerProgressBar: true,
-                        background: '#1a1f36',
+                        background: isDark ? '#1e293b' : '#1a1f36',
                         color: '#fff',
-                        iconColor: '#667eea'
+                        iconColor: isDark ? '#a855f7' : '#667eea'
                     });
                 });
 
