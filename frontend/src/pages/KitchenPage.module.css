@@ -1,0 +1,47 @@
+.page {
+    min-height: 100vh;
+    padding: 1.5rem 2rem;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: system-ui, sans-serif;
+    box-sizing: border-box;
+}
+
+.header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.user {
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.denied {
+    max-width: 32rem;
+    margin: 4rem auto;
+    padding: 2rem;
+    text-align: center;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+}
+
+.deniedTitle {
+    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+}
+
+.deniedText {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #475569;
+}

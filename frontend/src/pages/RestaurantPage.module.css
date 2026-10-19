@@ -1,0 +1,32 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 1rem 1.25rem;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: system-ui, sans-serif;
+    box-sizing: border-box;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.scene {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+}
