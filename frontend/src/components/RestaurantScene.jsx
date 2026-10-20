@@ -1,10 +1,13 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { GradientTexture, Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { Vector3 } from 'three';
 import RoomShell from './RoomShell';
 import Decor from './Decor';
+import Cats from './Cats';
+import Customers from './Customers';
+import WaiterManager from './WaiterManager';
 import Table3D from './Table3D';
 import { TARGET_LIMIT, ZOOM_BASE } from './roomLayout';
 import styles from './RestaurantScene.module.css';
@@ -22,6 +25,7 @@ const ISO_POSITION = new Vector3(...CAMERA.position);
 const ISO_TARGET = new Vector3(0, 0, 0);
 const MIN_POLAR_ANGLE = 0.2;
 const MAX_POLAR_ANGLE = Math.PI / 2 - 0.05;
+const ANIMATIONS_KEY = 'restaurante-animaciones';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -131,8 +135,22 @@ function CameraRig({ focus, resetRequest }) {
     return null;
 }
 
-export default function RestaurantScene({ tables = [], selectedId = null, onSelect }) {
+export default function RestaurantScene({
+    tables = [],
+    orders = [],
+    ordersLoaded = false,
+    consumeReady,
+    consumeDone,
+    selectedId = null,
+    onSelect,
+}) {
     const resetRequest = useRef(0);
+    const catRegistry = useRef([]);
+    const waiterRegistry = useRef([]);
+    const customerRegistry = useRef([]);
+    const [animationsEnabled, setAnimationsEnabled] = useState(
+        () => window.localStorage.getItem(ANIMATIONS_KEY) !== 'false',
+    );
     const selectedTable =
         tables.find((table) => String(table.id) === String(selectedId)) ?? null;
     const focusX = selectedTable ? Number(selectedTable.pos_x) || 0 : null;
@@ -141,6 +159,10 @@ export default function RestaurantScene({ tables = [], selectedId = null, onSele
         () => (focusX === null || focusZ === null ? null : [focusX, focusZ]),
         [focusX, focusZ],
     );
+
+    useEffect(() => {
+        window.localStorage.setItem(ANIMATIONS_KEY, String(animationsEnabled));
+    }, [animationsEnabled]);
 
     return (
         <div className={styles.wrapper}>
@@ -206,7 +228,29 @@ export default function RestaurantScene({ tables = [], selectedId = null, onSele
                         </Html>
                     }
                 >
-                    <Decor />
+                    <Decor animationsEnabled={animationsEnabled} />
+                    <Cats
+                        tables={tables}
+                        animationsEnabled={animationsEnabled}
+                        registry={catRegistry}
+                        waiters={waiterRegistry}
+                    />
+                    <Customers
+                        tables={tables}
+                        orders={orders}
+                        ordersLoaded={ordersLoaded}
+                        animationsEnabled={animationsEnabled}
+                        registry={customerRegistry}
+                    />
+                    <WaiterManager
+                        tables={tables}
+                        orders={orders}
+                        consumeReady={consumeReady}
+                        consumeDone={consumeDone}
+                        animationsEnabled={animationsEnabled}
+                        cats={catRegistry}
+                        customers={customerRegistry}
+                    />
 
                     {tables.map((table) => (
                         <Table3D
@@ -219,6 +263,7 @@ export default function RestaurantScene({ tables = [], selectedId = null, onSele
                             seats={table.seats}
                             status={table.status}
                             selected={String(selectedId) === String(table.id)}
+                            animationsEnabled={animationsEnabled}
                             onSelect={onSelect}
                         />
                     ))}
@@ -261,6 +306,17 @@ export default function RestaurantScene({ tables = [], selectedId = null, onSele
                 }}
             >
                 Restablecer vista
+            </button>
+
+            <button
+                type="button"
+                className={styles.animationsToggle}
+                aria-pressed={animationsEnabled}
+                onClick={() => {
+                    setAnimationsEnabled((current) => !current);
+                }}
+            >
+                {animationsEnabled ? 'Animaciones: activadas' : 'Animaciones: desactivadas'}
             </button>
         </div>
     );

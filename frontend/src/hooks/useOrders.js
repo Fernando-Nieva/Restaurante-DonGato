@@ -67,8 +67,11 @@ export default function useOrders() {
     const echo = useSyncExternalStore(subscribeToEcho, getEcho);
     const [tables, setTables] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [ordersLoaded, setOrdersLoaded] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const ordersRef = useRef(orders);
+    const readyQueue = useRef([]);
+    const doneQueue = useRef([]);
 
     useEffect(() => {
         ordersRef.current = orders;
@@ -89,9 +92,11 @@ export default function useOrders() {
 
                 setTables(extractList(tablesPayload));
                 setOrders(extractList(ordersPayload));
+                setOrdersLoaded(true);
             } catch (error) {
                 if (active) {
                     console.error('No se pudo cargar el estado inicial de mesas y pedidos:', error);
+                    setOrdersLoaded(true);
                 }
             }
         };
@@ -130,6 +135,22 @@ export default function useOrders() {
         }
     }, []);
 
+    const consumeReady = useCallback(() => {
+        const queue = readyQueue.current;
+
+        readyQueue.current = [];
+
+        return queue;
+    }, []);
+
+    const consumeDone = useCallback(() => {
+        const queue = doneQueue.current;
+
+        doneQueue.current = [];
+
+        return queue;
+    }, []);
+
     useEffect(() => {
         if (!echo) return undefined;
 
@@ -148,6 +169,21 @@ export default function useOrders() {
             const tableId = payload.table_id;
             const status = payload.status;
             const tableStatus = payload.table_status;
+
+            if (orderId != null && String(status ?? '').toLowerCase() === 'listo') {
+                readyQueue.current.push({ orderId, tableId: tableId ?? null, ts: Date.now() });
+            }
+
+            const normalized = String(status ?? '').toLowerCase();
+
+            if (orderId != null && (normalized === 'entregado' || normalized === 'cancelado')) {
+                doneQueue.current.push({
+                    orderId,
+                    tableId: tableId ?? null,
+                    status: normalized,
+                    ts: Date.now(),
+                });
+            }
 
             if (orderId != null && status != null) {
                 const knownOrder = ordersRef.current.some(
@@ -210,5 +246,14 @@ export default function useOrders() {
         return updated;
     }, []);
 
-    return { tables, orders, connectionStatus, createOrder, updateStatus };
+    return {
+        tables,
+        orders,
+        ordersLoaded,
+        connectionStatus,
+        createOrder,
+        updateStatus,
+        consumeReady,
+        consumeDone,
+    };
 }

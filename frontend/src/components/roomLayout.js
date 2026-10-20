@@ -20,3 +20,11 @@ export const WINDOW_BAND = {
 
 export const ZOOM_BASE = 42;
 export const TARGET_LIMIT = 20;
+
+export const KITCHEN_PICKUP = { x: 4.5, z: -4.0 };
+export const WAITER_COUNT = 3;
+export const KITCHEN_PICKUP_SLOTS = Array.from({ length: WAITER_COUNT }, (_, index) => ({
+    x: KITCHEN_PICKUP.x + (index - (WAITER_COUNT - 1) / 2) * 0.95,
+    z: KITCHEN_PICKUP.z,
+}));
+export const WAITER_MAX_WAIT_SECONDS = 120;

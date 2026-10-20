@@ -1,14 +1,43 @@
 import { Suspense, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Outlines } from '@react-three/drei';
+import { ExtrudeGeometry, Shape } from 'three';
 import GlbModel from './GlbModel';
 import ModelErrorBoundary from './ModelErrorBoundary';
 import { MODEL_CONFIG } from './modelConfig';
 import { TABLE_STATUS_COLORS } from '../constants/orderStatus';
+import { getChairLayout } from '../utils/chairs';
 
 const HOVER_LIFT = 0.08;
-const CHAIR_RADIUS = 1.15;
 const CLICK_MAX_DRAG_PX = 5;
+const READY_ICON_Y = 1.95;
+const READY_ICON_BOUNCE = 0.14;
+
+const noRaycast = () => null;
+
+const READY_GEOMETRY = (() => {
+    const shape = new Shape();
+
+    for (let index = 0; index < 10; index += 1) {
+        const angle = (index / 10) * Math.PI * 2 - Math.PI / 2;
+        const radius = index % 2 === 0 ? 0.22 : 0.095;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+
+        if (index === 0) {
+            shape.moveTo(x, y);
+        } else {
+            shape.lineTo(x, y);
+        }
+    }
+
+    shape.closePath();
+
+    const geometry = new ExtrudeGeometry(shape, { depth: 0.06, bevelEnabled: false });
+    geometry.center();
+
+    return geometry;
+})();
 
 function ProceduralTable() {
     return (
@@ -102,28 +131,20 @@ export default function Table3D({
     seats = 4,
     status = 'libre',
     selected = false,
+    animationsEnabled = true,
     onSelect,
 }) {
     const [hovered, setHovered] = useState(false);
     const contentRef = useRef(null);
     const ringRef = useRef(null);
+    const readyRef = useRef(null);
     const lift = useRef(0);
 
     const baseY = Number(pos_y) || 0;
     const statusKey = String(status ?? '').toLowerCase();
     const ringColor = TABLE_STATUS_COLORS[statusKey] ?? TABLE_STATUS_COLORS.libre;
     const pulsing = statusKey === 'pendiente' || statusKey === 'listo';
-    const chairCount = Math.max(2, Math.min(8, Number(seats) || 4));
-
-    const chairs = Array.from({ length: chairCount }, (_, index) => {
-        const angle = (index / chairCount) * Math.PI * 2;
-
-        return {
-            key: index,
-            position: [Math.cos(angle) * CHAIR_RADIUS, 0, Math.sin(angle) * CHAIR_RADIUS],
-            rotationY: Math.PI / 2 - angle,
-        };
-    });
+    const chairs = getChairLayout(seats);
 
     useFrame((state, delta) => {
         const content = contentRef.current;
@@ -140,6 +161,14 @@ export default function Table3D({
             const wave = pulsing ? Math.sin(state.clock.elapsedTime * 3.2) : 0;
             ring.scale.setScalar(1 + wave * 0.05);
             ring.material.opacity = 0.85 + wave * 0.15;
+        }
+
+        const ready = readyRef.current;
+
+        if (ready) {
+            ready.position.y =
+                READY_ICON_Y + Math.abs(Math.sin(state.clock.elapsedTime * 3.2)) * READY_ICON_BOUNCE;
+            ready.rotation.y = Math.sin(state.clock.elapsedTime * 1.6) * 0.35;
         }
     });
 
@@ -219,6 +248,23 @@ export default function Table3D({
                     toneMapped={false}
                 />
             </mesh>
+
+            {statusKey === 'listo' && animationsEnabled && (
+                <mesh
+                    ref={readyRef}
+                    geometry={READY_GEOMETRY}
+                    position={[0, READY_ICON_Y, 0]}
+                    raycast={noRaycast}
+                >
+                    <meshStandardMaterial
+                        color="#e8a53a"
+                        emissive="#ffcf5c"
+                        emissiveIntensity={1.6}
+                        roughness={0.6}
+                        toneMapped={false}
+                    />
+                </mesh>
+            )}
         </group>
     );
 }

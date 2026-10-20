@@ -28,7 +28,16 @@ const deriveTableStatus = (table, orders) => {
 };
 
 export default function RestaurantPage() {
-    const { tables, orders, connectionStatus, createOrder, updateStatus } = useOrders();
+    const {
+        tables,
+        orders,
+        ordersLoaded,
+        connectionStatus,
+        createOrder,
+        updateStatus,
+        consumeReady,
+        consumeDone,
+    } = useOrders();
     const [selectedId, setSelectedId] = useState(null);
 
     const tablesWithStatus = useMemo(
@@ -52,6 +61,10 @@ export default function RestaurantPage() {
             <div className={styles.scene}>
                 <RestaurantScene
                     tables={tablesWithStatus}
+                    orders={orders}
+                    ordersLoaded={ordersLoaded}
+                    consumeReady={consumeReady}
+                    consumeDone={consumeDone}
                     selectedId={selectedId}
                     onSelect={handleSelect}
                 />

@@ -38,3 +38,24 @@
 .resetButton:hover {
     background: rgba(58, 29, 21, 0.85);
 }
+
+.animationsToggle {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 10;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 179, 124, 0.35);
+    border-radius: 9999px;
+    background: rgba(26, 12, 9, 0.72);
+    color: #ffd9b3;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.animationsToggle:hover {
+    background: rgba(58, 29, 21, 0.85);
+}
