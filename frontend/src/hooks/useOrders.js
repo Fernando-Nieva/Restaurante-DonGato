@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { getEcho, subscribeToEcho } from '../lib/echo';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -55,7 +56,11 @@ const request = async (path, { method = 'GET', body, signal } = {}) => {
     });
 
     if (!response.ok) {
-        throw new Error(`${method} ${path} respondió ${response.status}`);
+        const error = new Error(`${method} ${path} respondió ${response.status}`);
+
+        error.status = response.status;
+
+        throw error;
     }
 
     if (response.status === 204) return null;
@@ -64,6 +69,7 @@ const request = async (path, { method = 'GET', body, signal } = {}) => {
 };
 
 export default function useOrders() {
+    const { logout } = useAuth();
     const echo = useSyncExternalStore(subscribeToEcho, getEcho);
     const [tables, setTables] = useState([]);
     const [orders, setOrders] = useState([]);
@@ -75,6 +81,17 @@ export default function useOrders() {
     const ordersRef = useRef(orders);
     const readyQueue = useRef([]);
     const doneQueue = useRef([]);
+
+    const handleUnauthorized = useCallback(
+        async (error) => {
+            if (error?.status !== 401) return false;
+
+            await logout();
+
+            return true;
+        },
+        [logout],
+    );
 
     useEffect(() => {
         ordersRef.current = orders;
@@ -100,6 +117,8 @@ export default function useOrders() {
                 setOrders(extractList(ordersPayload));
                 setOrdersLoaded(true);
             } catch (error) {
+                if (await handleUnauthorized(error)) return;
+
                 if (active) {
                     console.error('No se pudo cargar el estado inicial de mesas y pedidos:', error);
                     setLoadError(error);
@@ -116,7 +135,7 @@ export default function useOrders() {
             active = false;
             controller.abort();
         };
-    }, [reloadKey]);
+    }, [reloadKey, handleUnauthorized]);
 
     const retry = useCallback(() => {
         setReloadKey((key) => key + 1);
@@ -144,9 +163,11 @@ export default function useOrders() {
 
             setOrders(extractList(payload));
         } catch (error) {
+            if (await handleUnauthorized(error)) return;
+
             console.error('No se pudieron recargar los pedidos:', error);
         }
-    }, []);
+    }, [handleUnauthorized]);
 
     const consumeReady = useCallback(() => {
         const queue = readyQueue.current;
@@ -235,29 +256,47 @@ export default function useOrders() {
         };
     }, [echo, reloadOrders]);
 
-    const createOrder = useCallback(async (payload) => {
-        const response = await request('/api/orders', { method: 'POST', body: payload });
-        const created = extractOrder(response);
+    const createOrder = useCallback(
+        async (payload) => {
+            try {
+                const response = await request('/api/orders', { method: 'POST', body: payload });
+                const created = extractOrder(response);
 
-        if (created) {
-            setOrders((previous) => upsertOrder(previous, created));
-        }
+                if (created) {
+                    setOrders((previous) => upsertOrder(previous, created));
+                }
 
-        return created;
-    }, []);
+                return created;
+            } catch (error) {
+                if (await handleUnauthorized(error)) return null;
 
-    const updateStatus = useCallback(async (orderId, status) => {
-        const response = await request(`/api/orders/${orderId}/status`, {
-            method: 'PATCH',
-            body: { status },
-        });
+                throw error;
+            }
+        },
+        [handleUnauthorized],
+    );
 
-        const updated = extractOrder(response) ?? { id: orderId, status };
+    const updateStatus = useCallback(
+        async (orderId, status) => {
+            try {
+                const response = await request(`/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    body: { status },
+                });
 
-        setOrders((previous) => upsertOrder(previous, updated));
+                const updated = extractOrder(response) ?? { id: orderId, status };
 
-        return updated;
-    }, []);
+                setOrders((previous) => upsertOrder(previous, updated));
+
+                return updated;
+            } catch (error) {
+                if (await handleUnauthorized(error)) return null;
+
+                throw error;
+            }
+        },
+        [handleUnauthorized],
+    );
 
     return {
         tables,
