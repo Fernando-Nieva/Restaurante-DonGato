@@ -334,7 +334,7 @@ function Piece({ piece, groupRef, refs }) {
     );
 }
 
-function AnimatedPiece({ piece, animationsEnabled }) {
+function AnimatedPiece({ piece, motionEnabled }) {
     const groupRef = useRef(null);
     const leavesRef = useRef(null);
     const bulbRef = useRef(null);
@@ -349,7 +349,7 @@ function AnimatedPiece({ piece, animationsEnabled }) {
         const time = state.clock.elapsedTime;
 
         if (type === 'lantern') {
-            const angle = animationsEnabled
+            const angle = motionEnabled
                 ? Math.sin(time * LANTERN_SWAY_SPEED + phase) * LANTERN_SWAY
                 : 0;
 
@@ -359,7 +359,7 @@ function AnimatedPiece({ piece, animationsEnabled }) {
                     Math.cos(time * LANTERN_SWAY_SPEED * 0.7 + phase) * angle * 0.6;
             }
 
-            const flicker = animationsEnabled
+            const flicker = motionEnabled
                 ? 0.86 + Math.sin(time * 2.4 + phase * 3.1) * 0.14
                 : 1;
 
@@ -378,10 +378,10 @@ function AnimatedPiece({ piece, animationsEnabled }) {
         const leaves = leavesRef.current ?? groupRef.current;
 
         if (leaves) {
-            leaves.rotation.z = animationsEnabled
+            leaves.rotation.z = motionEnabled
                 ? Math.sin(time * 0.7 + phase) * PLANT_SWAY
                 : 0;
-            leaves.rotation.x = animationsEnabled
+            leaves.rotation.x = motionEnabled
                 ? Math.sin(time * 0.55 + phase * 1.3) * PLANT_SWAY * 0.6
                 : 0;
         }
@@ -434,22 +434,32 @@ function Steam({ animationsEnabled }) {
     );
 }
 
-export default function Decor({ animationsEnabled = true }) {
+export default function Decor({
+    animationsEnabled = true,
+    steamEnabled = true,
+    plantMotionEnabled = true,
+}) {
     return (
         <>
-            {PIECES.map((piece) =>
-                piece.animation ? (
+            {PIECES.map((piece) => {
+                if (!piece.animation) {
+                    return <Piece key={piece.id} piece={piece} />;
+                }
+
+                const motionEnabled =
+                    animationsEnabled &&
+                    (piece.animation.type !== 'plant' || plantMotionEnabled);
+
+                return (
                     <AnimatedPiece
                         key={piece.id}
                         piece={piece}
-                        animationsEnabled={animationsEnabled}
+                        motionEnabled={motionEnabled}
                     />
-                ) : (
-                    <Piece key={piece.id} piece={piece} />
-                ),
-            )}
+                );
+            })}
 
-            <Steam animationsEnabled={animationsEnabled} />
+            {steamEnabled && <Steam animationsEnabled={animationsEnabled} />}
         </>
     );
 }

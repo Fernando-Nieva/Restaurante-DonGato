@@ -31,9 +31,11 @@ export default function WaiterManager({
     animationsEnabled = true,
     cats = null,
     customers = null,
+    waiterCount = WAITER_COUNT,
 }) {
+    const count = Math.max(1, Math.min(WAITER_COUNT, waiterCount));
     const waiters = useRef(
-        Array.from({ length: WAITER_COUNT }, (_, index) => ({
+        Array.from({ length: count }, (_, index) => ({
             id: `mozo-${index + 1}`,
             state: 'idle',
             tripOrderIds: EMPTY_IDS,

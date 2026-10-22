@@ -20,6 +20,25 @@ export const WINDOW_BAND = {
 
 export const ZOOM_BASE = 42;
 export const TARGET_LIMIT = 20;
+export const ZOOM_FIT_WIDTH = 23;
+export const ZOOM_FIT_HEIGHT = 15;
+export const MIN_ZOOM_BASE = 20;
+export const MAX_ZOOM_BASE = 140;
+
+export function getZoomProfile(width, height) {
+    const safeWidth = Math.max(Number(width) || 0, 1);
+    const safeHeight = Math.max(Number(height) || 0, 1);
+    const fitZoom = Math.min(safeWidth / ZOOM_FIT_WIDTH, safeHeight / ZOOM_FIT_HEIGHT);
+    const initial = Math.max(1, Math.min(ZOOM_BASE, fitZoom));
+    const compact = initial < ZOOM_BASE - 0.01;
+
+    return {
+        initial,
+        min: compact ? Math.max(6, initial * 0.55) : MIN_ZOOM_BASE,
+        max: compact ? Math.max(initial * 4, 40) : MAX_ZOOM_BASE,
+        labelThreshold: initial * 0.7,
+    };
+}
 
 export const KITCHEN_PICKUP = { x: 4.5, z: -4.0 };
 export const WAITER_COUNT = 3;

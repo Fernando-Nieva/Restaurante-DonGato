@@ -1,5 +1,5 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import TopBar from './components/TopBar';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import AppLayout from './components/AppLayout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import KitchenPage from './pages/KitchenPage';
 import LoginPage from './pages/LoginPage';
@@ -14,12 +14,7 @@ function ProtectedLayout() {
         return <Navigate to="/login" replace />;
     }
 
-    return (
-        <>
-            <TopBar />
-            <Outlet />
-        </>
-    );
+    return <AppLayout />;
 }
 
 function KitchenRoute() {

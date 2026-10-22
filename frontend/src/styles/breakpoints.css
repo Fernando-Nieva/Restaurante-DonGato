@@ -1,0 +1,15 @@
+:root {
+    --breakpoint-tablet: 600px;
+    --breakpoint-desktop: 1024px;
+    --breakpoint-landscape-phone: 700px;
+    --breakpoint-landscape-height: 500px;
+
+    --panel-width-tablet: 340px;
+    --panel-width-desktop: 380px;
+    --panel-width-landscape: 320px;
+
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+}

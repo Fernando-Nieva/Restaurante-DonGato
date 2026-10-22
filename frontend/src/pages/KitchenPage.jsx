@@ -24,10 +24,10 @@ export default function KitchenPage() {
     return (
         <main className={styles.page}>
             <header className={styles.header}>
-                <h1 className={styles.title}>Cocina</h1>
-                <span className={styles.user}>
-                    {user?.name ?? user?.email ?? 'Usuario'} · {role}
-                </span>
+                <div>
+                    <h1 className={styles.title}>Cocina</h1>
+                    <p className={styles.subtitle}>Pedidos en preparación</p>
+                </div>
             </header>
 
             <KitchenBoard />

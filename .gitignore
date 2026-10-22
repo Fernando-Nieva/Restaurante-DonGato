@@ -1,0 +1,19 @@
+# Entorno local
+.env
+
+# Dependencias
+vendor/
+node_modules/
+
+# Bases SQLite locales
+*.sqlite
+*.sqlite3
+
+# Builds
+dist/
+backend/public/build/
+
+# Registros
+*.log
+**/storage/logs/*
+!**/storage/logs/.gitignore

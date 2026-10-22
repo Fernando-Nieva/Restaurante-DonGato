@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import logoUrl from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
+import styles from './LoginPage.module.css';
+
+const DEMO_USERS = [
+    { label: 'Mozo', email: 'mozo@example.com' },
+    { label: 'Cocina', email: 'cocina@example.com' },
+    { label: 'Admin', email: 'admin@example.com' },
+];
+
+const DEMO_PASSWORD = 'password';
+
+const FRIENDLY_ERROR = 'No pudimos iniciar sesión. Revisá tu email y contraseña e intentá de nuevo.';
 
 export default function LoginPage() {
     const { token, login } = useAuth();
@@ -24,84 +36,97 @@ export default function LoginPage() {
             await login(email, password);
             navigate('/restaurante', { replace: true });
         } catch (loginError) {
-            setError(loginError.message);
+            console.error('No se pudo iniciar sesión:', loginError);
+            setError(FRIENDLY_ERROR);
         } finally {
             setSubmitting(false);
         }
     };
 
+    const fillDemoUser = (demoEmail) => {
+        setEmail(demoEmail);
+        setPassword(DEMO_PASSWORD);
+        setError(null);
+    };
+
     return (
-        <main
-            style={{
-                fontFamily: 'system-ui, sans-serif',
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#f3f4f6',
-            }}
-        >
-            <form
-                onSubmit={handleSubmit}
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    width: '20rem',
-                    padding: '1.5rem',
-                    borderRadius: '0.5rem',
-                    backgroundColor: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
-                }}
-            >
-                <h1 style={{ fontSize: '1.125rem', margin: 0 }}>Restaurante 3D — Ingreso</h1>
+        <main className={styles.page}>
+            <section className={styles.card} aria-labelledby="login-title">
+                <div className={styles.brand}>
+                    <img className={styles.logo} src={logoUrl} alt="" width="180" height="180" />
+                    <h1 id="login-title" className={styles.srOnly}>
+                        Don Gato
+                    </h1>
+                    <p className={styles.subtitle}>Sistema de pedidos</p>
+                </div>
 
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.875rem' }}>
-                    Email
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                        autoComplete="email"
-                        style={{ padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
-                    />
-                </label>
+                <form className={styles.form} onSubmit={handleSubmit}>
+                    <div className={styles.field}>
+                        <label htmlFor="login-email">Email</label>
+                        <input
+                            id="login-email"
+                            type="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                            autoComplete="email"
+                            aria-invalid={error ? true : undefined}
+                            aria-describedby={error ? 'login-error' : undefined}
+                        />
+                    </div>
 
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.875rem' }}>
-                    Contraseña
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                        autoComplete="current-password"
-                        style={{ padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
-                    />
-                </label>
+                    <div className={styles.field}>
+                        <label htmlFor="login-password">Contraseña</label>
+                        <input
+                            id="login-password"
+                            type="password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                            autoComplete="current-password"
+                            aria-invalid={error ? true : undefined}
+                            aria-describedby={error ? 'login-error' : undefined}
+                        />
+                    </div>
 
-                {error && (
-                    <p role="alert" style={{ margin: 0, color: '#dc2626', fontSize: '0.875rem' }}>
-                        {error}
-                    </p>
+                    {error && (
+                        <p id="login-error" className={styles.error} role="alert">
+                            {error}
+                        </p>
+                    )}
+
+                    <button
+                        type="submit"
+                        className={styles.submit}
+                        disabled={submitting}
+                        aria-busy={submitting}
+                    >
+                        {submitting && <span className={styles.spinner} aria-hidden="true" />}
+                        {submitting ? 'Ingresando…' : 'Ingresar'}
+                    </button>
+                </form>
+
+                {import.meta.env.DEV && (
+                    <aside className={styles.demo} aria-label="Accesos rápidos de desarrollo">
+                        <p className={styles.demoTitle}>Acceso rápido (solo desarrollo)</p>
+                        <p className={styles.demoHint}>
+                            Rellena las credenciales de prueba. Contraseña: <code>password</code>
+                        </p>
+                        <div className={styles.demoButtons}>
+                            {DEMO_USERS.map((demo) => (
+                                <button
+                                    key={demo.email}
+                                    type="button"
+                                    className={styles.demoButton}
+                                    onClick={() => fillDemoUser(demo.email)}
+                                >
+                                    {demo.label}
+                                </button>
+                            ))}
+                        </div>
+                    </aside>
                 )}
-
-                <button
-                    type="submit"
-                    disabled={submitting}
-                    style={{
-                        padding: '0.5rem',
-                        borderRadius: '0.375rem',
-                        border: 'none',
-                        backgroundColor: submitting ? '#93c5fd' : '#2563eb',
-                        color: '#ffffff',
-                        fontWeight: 600,
-                        cursor: submitting ? 'wait' : 'pointer',
-                    }}
-                >
-                    {submitting ? 'Ingresando…' : 'Ingresar'}
-                </button>
-            </form>
+            </section>
         </main>
     );
 }

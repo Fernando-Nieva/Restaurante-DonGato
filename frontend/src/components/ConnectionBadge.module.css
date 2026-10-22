@@ -1,0 +1,86 @@
+.badge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 3px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentcolor;
+}
+
+.label {
+    display: none;
+    line-height: 1;
+}
+
+.online {
+    color: color-mix(in srgb, var(--color-success) 30%, var(--color-cream));
+    background-color: color-mix(in srgb, var(--color-success) 16%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 45%, transparent);
+}
+
+.online .dot {
+    background-color: var(--color-success);
+    animation: pulse 2s ease-out infinite;
+}
+
+.pending {
+    color: color-mix(in srgb, var(--color-warning) 45%, var(--color-cream));
+    background-color: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+.pending .dot {
+    background-color: var(--color-warning);
+}
+
+.offline {
+    color: color-mix(in srgb, var(--color-danger) 35%, var(--color-cream));
+    background-color: color-mix(in srgb, var(--color-danger) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-danger) 50%, transparent);
+}
+
+.offline .dot {
+    background-color: var(--color-danger);
+}
+
+@media (min-width: 600px) {
+    .label {
+        display: inline;
+    }
+
+    .badge {
+        padding: 3px 10px;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 50%, transparent);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px transparent;
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .online .dot {
+        animation: none;
+    }
+}

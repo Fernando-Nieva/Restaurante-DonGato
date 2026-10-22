@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import ConnectionBadge from './ConnectionBadge';
 import useOrders from '../hooks/useOrders';
-import { KITCHEN_COLUMNS, NEXT_STATUS } from '../constants/orderStatus';
+import { useToast } from '../context/ToastContext';
+import { KITCHEN_COLUMNS, NEXT_STATUS, ORDER_STATUS } from '../constants/orderStatus';
+import { PageError, PageLoader } from './PageState';
+import StatusIcon from './StatusIcon';
 import styles from './KitchenBoard.module.css';
 
 const HIGHLIGHT_MS = 3500;
+const CLOCK_TICK_MS = 30000;
 
 const BOARD_STATUSES = KITCHEN_COLUMNS.map((column) => column.status);
 
@@ -40,13 +43,55 @@ const formatTime = (value) => {
     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 };
 
+const minutesSince = (value, now) => {
+    if (!value) return null;
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return null;
+
+    return Math.max(0, Math.floor((now - date.getTime()) / 60000));
+};
+
+const elapsedLabel = (minutes) => {
+    if (minutes === null) return 'Sin hora';
+    if (minutes < 1) return 'recién';
+
+    return `hace ${minutes} min`;
+};
+
+function EmptyState() {
+    return (
+        <div className={styles.empty}>
+            <svg
+                className={styles.emptyIcon}
+                viewBox="0 0 64 64"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                aria-hidden="true"
+            >
+                <path d="M10 34a22 22 0 0 1 44 0" strokeLinecap="round" />
+                <path d="M6 39h52" strokeLinecap="round" />
+                <path d="M14 46h36" strokeLinecap="round" />
+                <path d="M32 12v-3" strokeLinecap="round" />
+                <circle cx="32" cy="6" r="2" />
+            </svg>
+            <p>Sin pedidos por ahora</p>
+        </div>
+    );
+}
+
 export default function KitchenBoard() {
-    const { orders, connectionStatus, updateStatus } = useOrders();
+    const { orders, updateStatus, loading, error, retry } = useOrders();
+    const { addToast } = useToast();
     const boardOrders = orders.filter((order) =>
         BOARD_STATUSES.includes(normalizeStatus(order.status)),
     );
+    const [activeStatus, setActiveStatus] = useState(KITCHEN_COLUMNS[0].status);
     const [highlightedIds, setHighlightedIds] = useState(() => new Set());
     const [busyIds, setBusyIds] = useState(() => new Set());
+    const [now, setNow] = useState(() => Date.now());
     const hydratedRef = useRef(false);
     const knownIdsRef = useRef(new Set());
     const initialOrdersRef = useRef(orders);
@@ -98,6 +143,12 @@ export default function KitchenBoard() {
         return () => timers.forEach((timer) => clearTimeout(timer));
     }, []);
 
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
+
+        return () => clearInterval(timer);
+    }, []);
+
     const advance = async (order, nextStatus) => {
         const key = String(order.id);
 
@@ -109,6 +160,11 @@ export default function KitchenBoard() {
             await updateStatus(order.id, nextStatus);
         } catch (error) {
             console.error(`No se pudo actualizar el pedido #${order.id}:`, error);
+            addToast({
+                type: 'error',
+                title: 'No se pudo actualizar el pedido',
+                message: `Pedido #${order.id}. Intentá de nuevo.`,
+            });
         } finally {
             setBusyIds((previous) => {
                 const next = new Set(previous);
@@ -119,11 +175,51 @@ export default function KitchenBoard() {
         }
     };
 
+    if (loading) {
+        return <PageLoader label="Preparando la cocina…" />;
+    }
+
+    if (error) {
+        return (
+            <PageError
+                title="No pudimos cargar los pedidos"
+                message="Revisá la conexión con el servidor e intentá de nuevo."
+                onRetry={retry}
+            />
+        );
+    }
+
     return (
-        <section>
+        <section className={styles.boardSection}>
             <div className={styles.toolbar}>
                 <h2 className={styles.toolbarTitle}>Órdenes en vivo</h2>
-                <ConnectionBadge status={connectionStatus} />
+            </div>
+
+            <div className={styles.tabs} role="tablist" aria-label="Filtrar órdenes por estado">
+                {KITCHEN_COLUMNS.map((column) => {
+                    const count = boardOrders.filter(
+                        (order) => normalizeStatus(order.status) === column.status,
+                    ).length;
+                    const active = activeStatus === column.status;
+
+                    return (
+                        <button
+                            key={column.status}
+                            id={`kitchen-tab-${column.status}`}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            aria-controls={`kitchen-panel-${column.status}`}
+                            className={`${styles.tab} ${active ? styles.tabActive : ''}`}
+                            style={{ '--status-color': column.color }}
+                            onClick={() => setActiveStatus(column.status)}
+                        >
+                            <span className={styles.tabDot} aria-hidden="true" />
+                            <span className={styles.tabLabel}>{column.title}</span>
+                            <span className={styles.tabCount}>{count}</span>
+                        </button>
+                    );
+                })}
             </div>
 
             <div className={styles.board}>
@@ -132,20 +228,42 @@ export default function KitchenBoard() {
                     const columnOrders = boardOrders.filter(
                         (order) => normalizeStatus(order.status) === column.status,
                     );
+                    const active = activeStatus === column.status;
 
                     return (
-                        <div key={column.status} className={`${styles.column} ${styles[column.status]}`}>
+                        <div
+                            key={column.status}
+                            id={`kitchen-panel-${column.status}`}
+                            role="tabpanel"
+                            aria-labelledby={`kitchen-tab-${column.status}`}
+                            className={`${styles.column} ${
+                                active ? styles.columnActive : ''
+                            }`}
+                            style={{ '--status-color': column.color }}
+                        >
                             <header className={styles.columnHeader}>
-                                <span className={styles.columnTitle}>{column.title}</span>
+                                <h3 className={styles.columnTitle}>
+                                    <StatusIcon
+                                        status={column.status}
+                                        className={styles.columnIcon}
+                                        size={20}
+                                    />
+                                    {column.title}
+                                </h3>
                                 <span className={styles.count}>{columnOrders.length}</span>
                             </header>
 
                             <div className={styles.cards}>
-                                {columnOrders.length === 0 && <p className={styles.empty}>Sin pedidos</p>}
+                                {columnOrders.length === 0 && <EmptyState />}
 
                                 {columnOrders.map((order) => {
                                     const key = String(order.id);
                                     const items = orderItems(order);
+                                    const minutes = minutesSince(order.created_at, now);
+                                    const isLate =
+                                        column.status === ORDER_STATUS.Pendiente &&
+                                        minutes !== null &&
+                                        minutes > 15;
 
                                     return (
                                         <article
@@ -157,14 +275,27 @@ export default function KitchenBoard() {
                                             }
                                         >
                                             <header className={styles.cardHeader}>
-                                                <span className={styles.table}>Mesa {tableLabel(order)}</span>
-                                                <time className={styles.time}>{formatTime(order.created_at)}</time>
+                                                <span className={styles.table}>
+                                                    Mesa {tableLabel(order)}
+                                                </span>
+                                                <time
+                                                    className={`${styles.time} ${
+                                                        isLate ? styles.timeLate : ''
+                                                    }`}
+                                                    dateTime={order.created_at ?? undefined}
+                                                    title={formatTime(order.created_at)}
+                                                >
+                                                    {elapsedLabel(minutes)}
+                                                </time>
                                             </header>
 
                                             <ul className={styles.items}>
                                                 {items.map((item, index) => (
                                                     <li key={`${itemName(item)}-${index}`}>
-                                                        {itemQuantity(item)} × {itemName(item)}
+                                                        <span className={styles.itemQuantity}>
+                                                            {itemQuantity(item)} ×
+                                                        </span>{' '}
+                                                        {itemName(item)}
                                                         {item?.notes && (
                                                             <em className={styles.itemNotes}>
                                                                 {item.notes}
@@ -174,7 +305,14 @@ export default function KitchenBoard() {
                                                 ))}
                                             </ul>
 
-                                            {order.notes && <p className={styles.notes}>{order.notes}</p>}
+                                            {order.notes && (
+                                                <p className={styles.notes}>
+                                                    <strong className={styles.notesLabel}>
+                                                        Notas:
+                                                    </strong>{' '}
+                                                    {order.notes}
+                                                </p>
+                                            )}
 
                                             {nextStatus ? (
                                                 <button
@@ -183,7 +321,9 @@ export default function KitchenBoard() {
                                                     disabled={busyIds.has(key)}
                                                     onClick={() => advance(order, nextStatus)}
                                                 >
-                                                    {column.action}
+                                                    {busyIds.has(key)
+                                                        ? 'Actualizando…'
+                                                        : column.action}
                                                 </button>
                                             ) : (
                                                 column.note && (

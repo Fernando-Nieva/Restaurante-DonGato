@@ -10,6 +10,9 @@ import { getChairLayout } from '../utils/chairs';
 
 const HOVER_LIFT = 0.08;
 const CLICK_MAX_DRAG_PX = 5;
+const TOUCH_MAX_DRAG_PX = 8;
+const TABLE_RADIUS = 0.75;
+const TOUCH_COLLIDER_RADIUS = TABLE_RADIUS * 1.25;
 const READY_ICON_Y = 1.95;
 const READY_ICON_BOUNCE = 0.14;
 
@@ -132,6 +135,7 @@ export default function Table3D({
     status = 'libre',
     selected = false,
     animationsEnabled = true,
+    labelsVisible = true,
     onSelect,
 }) {
     const [hovered, setHovered] = useState(false);
@@ -139,6 +143,7 @@ export default function Table3D({
     const ringRef = useRef(null);
     const readyRef = useRef(null);
     const lift = useRef(0);
+    const touchStart = useRef(null);
 
     const baseY = Number(pos_y) || 0;
     const statusKey = String(status ?? '').toLowerCase();
@@ -183,11 +188,36 @@ export default function Table3D({
         document.body.style.cursor = 'auto';
     };
 
+    const handlePointerDown = (event) => {
+        if (event.nativeEvent?.pointerType === 'mouse') {
+            return;
+        }
+
+        touchStart.current = {
+            x: event.nativeEvent.clientX,
+            y: event.nativeEvent.clientY,
+        };
+    };
+
     const handleClick = (event) => {
         event.stopPropagation();
 
-        if (event.delta >= CLICK_MAX_DRAG_PX) {
+        const pointerType = event.nativeEvent?.pointerType ?? 'mouse';
+        const isTouch = pointerType !== 'mouse';
+        const threshold = isTouch ? TOUCH_MAX_DRAG_PX : CLICK_MAX_DRAG_PX;
+        const start = touchStart.current;
+        const moved = start
+            ? Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y)
+            : (event.delta ?? 0);
+
+        touchStart.current = null;
+
+        if (moved >= threshold) {
             return;
+        }
+
+        if (isTouch && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(10);
         }
 
         onSelect?.(id);
@@ -197,6 +227,7 @@ export default function Table3D({
         <group
             position={[Number(pos_x) || 0, 0, Number(pos_z) || 0]}
             onClick={handleClick}
+            onPointerDown={handlePointerDown}
             onPointerOver={handlePointerOver}
             onPointerOut={handlePointerOut}
         >
@@ -207,37 +238,58 @@ export default function Table3D({
                     <Chair key={chair.key} position={chair.position} rotationY={chair.rotationY} />
                 ))}
 
-                <mesh position={[0, 0.78, 0]}>
+                <mesh
+                    position={[0, 0.78, 0]}
+                    raycast={noRaycast}
+                >
                     <cylinderGeometry args={[0.85, 0.85, 0.06, 24]} />
                     <meshBasicMaterial transparent opacity={0} depthWrite={false} />
                     {hovered && <Outlines thickness={0.06} color="#3d2814" />}
                 </mesh>
             </group>
 
-            <Html center position={[0, 1.5, 0]} style={{ pointerEvents: 'none' }}>
-                <div style={{ transform: 'translate(-50%, -50%)' }}>
-                    <span
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxSizing: 'border-box',
-                            height: '28px',
-                            padding: '0 10px',
-                            borderRadius: '9999px',
-                            background: ringColor,
-                            border: '2px solid rgba(61, 40, 20, 0.4)',
-                            color: '#1f1305',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            lineHeight: 1,
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {number}
-                    </span>
-                </div>
-            </Html>
+            <mesh position={[0, 0.78, 0]} castShadow={false} receiveShadow={false}>
+                <cylinderGeometry
+                    args={[TOUCH_COLLIDER_RADIUS, TOUCH_COLLIDER_RADIUS, 1.56, 24]}
+                />
+                <meshBasicMaterial
+                    transparent
+                    opacity={0}
+                    depthWrite={false}
+                    colorWrite={false}
+                />
+            </mesh>
+
+            {labelsVisible && (
+                <Html center position={[0, 1.5, 0]} style={{ pointerEvents: 'none' }}>
+                    <div style={{ transform: 'translate(-50%, -50%)' }}>
+                        <span
+                            data-table-label={id}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxSizing: 'border-box',
+                                width: '32px',
+                                height: '32px',
+                                padding: 0,
+                                fontFamily: 'var(--font-display)',
+                                fontSize: '15px',
+                                fontWeight: 600,
+                                lineHeight: 1,
+                                color: 'var(--color-chocolate)',
+                                whiteSpace: 'nowrap',
+                                background: 'var(--color-cream)',
+                                border: '2px solid var(--color-chocolate)',
+                                borderRadius: 'var(--radius-pill)',
+                                boxShadow: 'var(--shadow-sm)',
+                            }}
+                        >
+                            {number}
+                        </span>
+                    </div>
+                </Html>
+            )}
 
             <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
                 <ringGeometry args={selected ? [0.95, 1.38, 48] : [1.06, 1.28, 48]} />

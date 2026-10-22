@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { KITCHEN_STATUS_TITLES, ORDER_STATUS } from '../constants/orderStatus';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    KITCHEN_STATUS_TITLES,
+    ORDER_STATUS,
+    ORDER_STATUS_COLORS,
+    ORDER_STATUS_LABELS,
+} from '../constants/orderStatus';
+import { useToast } from '../context/ToastContext';
+import { formatPrice } from '../utils/formatPrice';
+import StatusIcon from './StatusIcon';
 import styles from './OrderPanel.module.css';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -11,8 +19,6 @@ const CATEGORY_TITLES = {
 };
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_TITLES);
-
-const formatPrice = (value) => Number(value ?? 0).toFixed(2);
 
 const formatTime = (value) => {
     if (!value) return '';
@@ -38,16 +44,6 @@ const categoryKey = (product) => {
 
 const orderTableId = (order) => order.table_id ?? order.table?.id ?? null;
 
-const orderTableLabel = (order) => {
-    const table = order.table;
-
-    if (table && typeof table === 'object') {
-        return table.number ?? table.name ?? table.id ?? '—';
-    }
-
-    return order.table_id ?? '—';
-};
-
 const normalizeStatus = (status) => String(status ?? '').toLowerCase();
 
 const authHeaders = () => {
@@ -72,6 +68,23 @@ const fetchProducts = async (signal) => {
     return [];
 };
 
+function SeatIcon() {
+    return (
+        <svg
+            className={styles.seatIcon}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden="true"
+        >
+            <path d="M7 10V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4" strokeLinecap="round" />
+            <path d="M5 10h14l-1 6H6l-1-6Z" strokeLinejoin="round" />
+            <path d="M7 16v4M17 16v4" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 export default function OrderPanel({ table, orders = [], createOrder, updateStatus, onClose }) {
     const [products, setProducts] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(true);
@@ -81,11 +94,9 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
     const [cart, setCart] = useState({});
     const [generalNotes, setGeneralNotes] = useState('');
     const [sending, setSending] = useState(false);
-    const [feedback, setFeedback] = useState(null);
     const [busyOrderIds, setBusyOrderIds] = useState(() => new Set());
-    const [orderActionError, setOrderActionError] = useState(null);
-    const [notices, setNotices] = useState([]);
-    const statusesRef = useRef(new Map());
+    const [cancelOrderId, setCancelOrderId] = useState(null);
+    const { addToast } = useToast();
 
     useEffect(() => {
         const controller = new AbortController();
@@ -122,40 +133,8 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
     useEffect(() => {
         setCart({});
         setGeneralNotes('');
-        setFeedback(null);
-        setOrderActionError(null);
+        setCancelOrderId(null);
     }, [table.id]);
-
-    useEffect(() => {
-        const previousStatuses = statusesRef.current;
-        const nextStatuses = new Map();
-        const readyOrders = [];
-
-        orders.forEach((order) => {
-            const key = String(order.id);
-            const current = normalizeStatus(order.status);
-            const previous = previousStatuses.get(key);
-
-            if (previous !== undefined && previous !== current && current === ORDER_STATUS.Listo) {
-                readyOrders.push(order);
-            }
-
-            nextStatuses.set(key, current);
-        });
-
-        statusesRef.current = nextStatuses;
-
-        if (readyOrders.length === 0) return;
-
-        setNotices((existing) => {
-            const additions = readyOrders.map((order, index) => ({
-                id: `${order.id}-${Date.now()}-${index}`,
-                message: `Mesa ${orderTableLabel(order)}: pedido listo para entregar`,
-            }));
-
-            return [...existing, ...additions].slice(-3);
-        });
-    }, [orders]);
 
     const visibleProducts = useMemo(
         () => products.filter((product) => categoryKey(product) === activeCategory),
@@ -191,6 +170,10 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
         0,
     );
 
+    const tableNumber = table.number ?? table.name ?? table.id;
+    const seats = Number(table.seats);
+    const hasSeats = Number.isFinite(seats) && seats > 0;
+
     const changeQuantity = (productId, delta) => {
         setCart((previous) => {
             const current = previous[productId] ?? { quantity: 0, notes: '' };
@@ -215,23 +198,22 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
         );
     };
 
-    const dismissNotice = (noticeId) => {
-        setNotices((previous) => previous.filter((notice) => notice.id !== noticeId));
-    };
-
     const changeOrderStatus = async (order, status) => {
         const key = String(order.id);
 
         if (busyOrderIds.has(key)) return;
 
         setBusyOrderIds((previous) => new Set(previous).add(key));
-        setOrderActionError(null);
 
         try {
             await updateStatus(order.id, status);
         } catch (error) {
             console.error(`No se pudo actualizar el pedido #${order.id}:`, error);
-            setOrderActionError(`No se pudo actualizar el pedido #${order.id}.`);
+            addToast({
+                type: 'error',
+                title: 'No se pudo actualizar el pedido',
+                message: `Pedido #${order.id}. Intentá de nuevo.`,
+            });
         } finally {
             setBusyOrderIds((previous) => {
                 const next = new Set(previous);
@@ -242,17 +224,12 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
         }
     };
 
-    const handleCancel = (order) => {
-        if (!window.confirm(`¿Cancelar el pedido #${order.id}?`)) return;
-
-        changeOrderStatus(order, ORDER_STATUS.Cancelado);
-    };
-
     const handleSubmit = async () => {
         if (sending || totalQuantity === 0) return;
 
+        const submittedQuantity = totalQuantity;
+
         setSending(true);
-        setFeedback(null);
 
         try {
             await createOrder({
@@ -267,44 +244,53 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
 
             setCart({});
             setGeneralNotes('');
-            setFeedback({ type: 'success', message: 'Pedido enviado a cocina.' });
+            addToast({
+                type: 'success',
+                title: 'Pedido enviado',
+                message: `Mesa ${tableNumber} · ${submittedQuantity} ítem${
+                    submittedQuantity === 1 ? '' : 's'
+                }`,
+            });
         } catch (error) {
             console.error('No se pudo enviar el pedido:', error);
-            setFeedback({ type: 'error', message: 'No se pudo enviar el pedido.' });
+            addToast({
+                type: 'error',
+                title: 'No se pudo enviar el pedido',
+                message: 'Revisá la conexión e intentá de nuevo.',
+            });
         } finally {
             setSending(false);
         }
     };
 
     return (
-        <aside className={styles.panel}>
-            {notices.length > 0 && (
-                <div className={styles.notices}>
-                    {notices.map((notice) => (
-                        <div key={notice.id} className={styles.notice}>
-                            <span>{notice.message}</span>
-                            <button
-                                type="button"
-                                className={styles.noticeClose}
-                                onClick={() => dismissNotice(notice.id)}
-                                aria-label="Cerrar aviso"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
+        <aside
+            className={styles.panel}
+            aria-label={`Pedido de mesa ${tableNumber}`}
+            data-order-panel
+        >
+            <div className={styles.grabber} aria-hidden="true" />
 
             <header className={styles.header}>
-                <h2 className={styles.title}>Mesa {table.number ?? table.name ?? table.id}</h2>
+                <div className={styles.headerInfo}>
+                    <h2 className={styles.title}>Mesa {tableNumber}</h2>
+                    {hasSeats && (
+                        <p className={styles.seats}>
+                            <SeatIcon />
+                            {seats} asiento{seats === 1 ? '' : 's'}
+                        </p>
+                    )}
+                </div>
+
                 <button
                     type="button"
                     className={styles.close}
                     onClick={onClose}
                     aria-label="Cerrar panel"
                 >
-                    ×
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+                    </svg>
                 </button>
             </header>
 
@@ -313,53 +299,102 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                     <section className={styles.section}>
                         <h3 className={styles.sectionTitle}>Pedidos activos</h3>
 
-                        {orderActionError && <p className={styles.error}>{orderActionError}</p>}
-
                         <ul className={styles.orderList}>
                             {tableOrders.map((order) => {
                                 const status = normalizeStatus(order.status);
                                 const busy = busyOrderIds.has(String(order.id));
+                                const confirming = cancelOrderId === order.id;
 
                                 return (
                                     <li key={order.id} className={styles.orderRow}>
-                                        <div className={styles.orderInfo}>
-                                            <span>
-                                                #{order.id}
+                                        <div className={styles.orderTop}>
+                                            <div className={styles.orderInfo}>
+                                                <span className={styles.orderId}>#{order.id}</span>
                                                 {order.created_at && (
                                                     <span className={styles.orderTime}>
                                                         {formatTime(order.created_at)}
                                                     </span>
                                                 )}
-                                            </span>
-                                            <span
-                                                className={`${styles.statusBadge} ${styles[status]}`}
-                                            >
-                                                {KITCHEN_STATUS_TITLES[status]}
-                                            </span>
+                                                <span
+                                                    className={styles.statusBadge}
+                                                    style={{
+                                                        '--status-color':
+                                                            ORDER_STATUS_COLORS[status] ??
+                                                            'var(--color-muted)',
+                                                    }}
+                                                >
+                                                    <StatusIcon
+                                                        status={status}
+                                                        className={styles.statusIcon}
+                                                    />
+                                                    {ORDER_STATUS_LABELS[status] ?? status}
+                                                </span>
+                                            </div>
+
+                                            {status === ORDER_STATUS.Listo && (
+                                                <button
+                                                    type="button"
+                                                    className={styles.deliver}
+                                                    disabled={busy}
+                                                    onClick={() =>
+                                                        changeOrderStatus(
+                                                            order,
+                                                            ORDER_STATUS.Entregado,
+                                                        )
+                                                    }
+                                                >
+                                                    {busy
+                                                        ? 'Entregando…'
+                                                        : 'Marcar como entregado'}
+                                                </button>
+                                            )}
+
+                                            {status === ORDER_STATUS.Pendiente && !confirming && (
+                                                <button
+                                                    type="button"
+                                                    className={styles.cancel}
+                                                    disabled={busy}
+                                                    onClick={() => setCancelOrderId(order.id)}
+                                                >
+                                                    {busy ? 'Cancelando…' : 'Cancelar'}
+                                                </button>
+                                            )}
                                         </div>
 
-                                        {status === ORDER_STATUS.Listo && (
-                                            <button
-                                                type="button"
-                                                className={styles.deliver}
-                                                disabled={busy}
-                                                onClick={() =>
-                                                    changeOrderStatus(order, ORDER_STATUS.Entregado)
-                                                }
+                                        {confirming && (
+                                            <div
+                                                className={styles.cancelConfirm}
+                                                role="group"
+                                                aria-label={`Confirmar cancelación del pedido ${order.id}`}
                                             >
-                                                {busy ? 'Entregando…' : 'Marcar como entregado'}
-                                            </button>
-                                        )}
-
-                                        {status === ORDER_STATUS.Pendiente && (
-                                            <button
-                                                type="button"
-                                                className={styles.cancel}
-                                                disabled={busy}
-                                                onClick={() => handleCancel(order)}
-                                            >
-                                                {busy ? 'Cancelando…' : 'Cancelar'}
-                                            </button>
+                                                <span className={styles.cancelConfirmText}>
+                                                    ¿Cancelar el pedido?
+                                                </span>
+                                                <div className={styles.cancelConfirmActions}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.cancelConfirmYes}
+                                                        disabled={busy}
+                                                        onClick={() => {
+                                                            setCancelOrderId(null);
+                                                            changeOrderStatus(
+                                                                order,
+                                                                ORDER_STATUS.Cancelado,
+                                                            );
+                                                        }}
+                                                    >
+                                                        {busy ? 'Cancelando…' : 'Sí, cancelar'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.cancelConfirmNo}
+                                                        disabled={busy}
+                                                        onClick={() => setCancelOrderId(null)}
+                                                    >
+                                                        Volver
+                                                    </button>
+                                                </div>
+                                            </div>
                                         )}
                                     </li>
                                 );
@@ -371,7 +406,12 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                 <section className={styles.section}>
                     <h3 className={styles.sectionTitle}>Carta</h3>
 
-                    {loadingProducts && <p className={styles.muted}>Cargando productos…</p>}
+                    {loadingProducts && (
+                        <p className={styles.loadingText} role="status">
+                            <span className={styles.spinner} aria-hidden="true" />
+                            Cargando productos…
+                        </p>
+                    )}
 
                     {productsError && (
                         <p className={styles.error}>
@@ -433,7 +473,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                                                     </p>
                                                 )}
                                                 <p className={styles.productPrice}>
-                                                    ${formatPrice(productPrice(product))}
+                                                    {formatPrice(productPrice(product))}
                                                 </p>
                                             </div>
 
@@ -474,7 +514,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                                 <span className={styles.cartName}>{productName(product)}</span>
                                 <span className={styles.cartQuantity}>× {quantity}</span>
                                 <span className={styles.cartSubtotal}>
-                                    ${formatPrice(quantity * productPrice(product))}
+                                    {formatPrice(quantity * productPrice(product))}
                                 </span>
                             </div>
 
@@ -508,7 +548,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                     <span>
                         {totalQuantity} ítem{totalQuantity === 1 ? '' : 's'}
                     </span>
-                    <strong className={styles.total}>Total ${formatPrice(total)}</strong>
+                    <strong className={styles.total}>Total {formatPrice(total)}</strong>
                 </div>
 
                 <button
@@ -516,15 +556,11 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                     className={styles.submit}
                     onClick={handleSubmit}
                     disabled={sending || totalQuantity === 0}
+                    aria-busy={sending}
                 >
+                    {sending && <span className={styles.spinner} aria-hidden="true" />}
                     {sending ? 'Enviando…' : 'Enviar a cocina'}
                 </button>
-
-                {feedback && (
-                    <p className={feedback.type === 'success' ? styles.success : styles.error}>
-                        {feedback.message}
-                    </p>
-                )}
             </footer>
         </aside>
     );

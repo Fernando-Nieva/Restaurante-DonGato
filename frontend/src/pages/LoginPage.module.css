@@ -1,0 +1,259 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+    padding: calc(var(--space-4) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+        calc(var(--space-4) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
+    overflow-y: auto;
+    background:
+        radial-gradient(
+            circle at 18% 12%,
+            color-mix(in srgb, var(--color-orange) 30%, transparent),
+            transparent 42%
+        ),
+        radial-gradient(
+            circle at 86% 84%,
+            color-mix(in srgb, var(--color-danger) 14%, transparent),
+            transparent 40%
+        ),
+        linear-gradient(
+            160deg,
+            var(--color-cream) 0%,
+            color-mix(in srgb, var(--color-cream) 78%, var(--color-orange)) 55%,
+            color-mix(in srgb, var(--color-cream) 62%, var(--color-orange)) 100%
+        );
+}
+
+.card {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-5);
+    margin-block: auto;
+    background-color: color-mix(in srgb, var(--color-surface) 94%, transparent);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: var(--space-4);
+    text-align: center;
+}
+
+.logo {
+    width: 150px;
+    height: auto;
+    margin-bottom: var(--space-2);
+    filter: drop-shadow(
+        0 8px 14px color-mix(in srgb, var(--color-chocolate) 18%, transparent)
+    );
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.subtitle {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-muted);
+    letter-spacing: 0.02em;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-brown);
+}
+
+.field input {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--color-chocolate);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input:focus {
+    border-color: var(--color-orange);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 22%, transparent);
+}
+
+.field input[aria-invalid='true'] {
+    border-color: var(--color-danger);
+}
+
+.error {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: var(--text-sm);
+    color: var(--color-red-strong);
+    background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+    border-left: 4px solid var(--color-danger);
+    border-radius: var(--radius-sm);
+}
+
+.submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 50px;
+    padding: 0 var(--space-4);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-chocolate);
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    background-color: var(--color-orange);
+    border: none;
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 14px color-mix(in srgb, var(--color-orange) 28%, transparent);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.submit:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.submit:disabled {
+    cursor: wait;
+    opacity: 0.7;
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid color-mix(in srgb, var(--color-chocolate) 25%, transparent);
+    border-top-color: var(--color-chocolate);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.demo {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px dashed var(--color-line);
+}
+
+.demoTitle {
+    margin: 0 0 4px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.demoHint {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+}
+
+.demoHint code {
+    padding: 1px 5px;
+    color: var(--color-brown);
+    background-color: var(--color-cream-dark);
+    border-radius: 4px;
+}
+
+.demoButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.demoButton {
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-brown);
+    cursor: pointer;
+    background-color: transparent;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+}
+
+.demoButton:active {
+    background-color: var(--color-cream-dark);
+}
+
+@media (min-width: 600px) {
+    .page {
+        padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-5) + var(--safe-right))
+            calc(var(--space-5) + var(--safe-bottom)) calc(var(--space-5) + var(--safe-left));
+    }
+
+    .card {
+        padding: var(--space-6);
+    }
+
+    .brand {
+        margin-bottom: var(--space-5);
+    }
+
+    .logo {
+        width: 180px;
+    }
+}
+
+@media (hover: hover) {
+    .field input:hover {
+        border-color: color-mix(in srgb, var(--color-line) 65%, var(--color-brown));
+    }
+
+    .submit:hover:not(:disabled) {
+        background-color: var(--color-orange-dark);
+        box-shadow: 0 8px 18px color-mix(in srgb, var(--color-orange-dark) 30%, transparent);
+        transform: translateY(-1px);
+    }
+
+    .demoButton:hover {
+        color: var(--color-chocolate);
+        background-color: var(--color-cream-dark);
+        border-color: color-mix(in srgb, var(--color-line) 65%, var(--color-brown));
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

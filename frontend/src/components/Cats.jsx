@@ -34,13 +34,20 @@ const CATS = [
     },
 ];
 
-export default function Cats({ tables = [], animationsEnabled = true, registry = null, waiters = null }) {
+export default function Cats({
+    tables = [],
+    animationsEnabled = true,
+    registry = null,
+    waiters = null,
+    maxCats = CATS.length,
+}) {
     const internalRegistry = useRef([]);
     const sharedRegistry = registry ?? internalRegistry;
+    const visibleCats = CATS.slice(0, Math.max(0, maxCats));
 
     return (
         <>
-            {CATS.map((cat) => (
+            {visibleCats.map((cat) => (
                 <Cat
                     key={cat.name}
                     {...cat}

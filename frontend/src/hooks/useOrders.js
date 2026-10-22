@@ -68,6 +68,9 @@ export default function useOrders() {
     const [tables, setTables] = useState([]);
     const [orders, setOrders] = useState([]);
     const [ordersLoaded, setOrdersLoaded] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
+    const [reloadKey, setReloadKey] = useState(0);
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const ordersRef = useRef(orders);
     const readyQueue = useRef([]);
@@ -82,6 +85,9 @@ export default function useOrders() {
         let active = true;
 
         const loadInitialState = async () => {
+            setLoading(true);
+            setLoadError(null);
+
             try {
                 const [tablesPayload, ordersPayload] = await Promise.all([
                     request('/api/tables', { signal: controller.signal }),
@@ -96,8 +102,11 @@ export default function useOrders() {
             } catch (error) {
                 if (active) {
                     console.error('No se pudo cargar el estado inicial de mesas y pedidos:', error);
+                    setLoadError(error);
                     setOrdersLoaded(true);
                 }
+            } finally {
+                if (active) setLoading(false);
             }
         };
 
@@ -107,6 +116,10 @@ export default function useOrders() {
             active = false;
             controller.abort();
         };
+    }, [reloadKey]);
+
+    const retry = useCallback(() => {
+        setReloadKey((key) => key + 1);
     }, []);
 
     useEffect(() => {
@@ -250,6 +263,9 @@ export default function useOrders() {
         tables,
         orders,
         ordersLoaded,
+        loading,
+        error: loadError,
+        retry,
         connectionStatus,
         createOrder,
         updateStatus,
