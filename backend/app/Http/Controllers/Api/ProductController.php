@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProductAvailabilityRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Services\ProductService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
@@ -29,9 +30,13 @@ class ProductController extends Controller
      */
     public function updateAvailability(
         UpdateProductAvailabilityRequest $request,
-        Product $product
+        Product $product,
+        ProductService $productService
     ): ProductResource {
-        $product->update(['is_available' => $request->validated('is_available')]);
+        $product = $productService->updateAvailability(
+            $product,
+            $request->boolean('is_available')
+        );
 
         return new ProductResource($product);
     }

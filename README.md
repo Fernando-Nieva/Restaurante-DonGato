@@ -34,11 +34,12 @@ Don Gato resuelve la coordinación entre el salón y la cocina de un restaurante
 
 ## Características
 
-- Salón 3D con ocho mesas seleccionables, color por estado (`libre`, `pendiente`, `preparando`, `listo`) e indicador visual para pedidos listos. Si WebGL no está disponible, se muestra una vista de lista con el mismo panel de pedidos.
+- Salón 3D con mesas seleccionables, color por estado (`libre`, `pendiente`, `preparando`, `listo`) e indicador visual para pedidos listos. Si WebGL no está disponible, se muestra una vista de lista con el mismo panel de pedidos.
 - Carta obtenida desde SQLite, organizada en pizzas, hamburguesas y bebidas, con precios, descripciones y filtrado de productos no disponibles.
-- Pedidos en vivo con Laravel Reverb: altas, cambios de estado y actualización del estado de la mesa mediante canales privados.
+- Pedidos, carta y mesas en vivo con Laravel Reverb: altas, cambios de estado, disponibilidad de productos y actualización del salón mediante canales privados.
 - Tablero de cocina con columnas para pendientes, en preparación y listos, tiempo transcurrido, aviso de demora y resaltado de pedidos nuevos.
 - Roles `mozo`, `cocina` y `admin`, con autorización por transición en el backend y vistas diferenciadas en el frontend.
+- Panel de administración con métricas por período, historial filtrable con exportación CSV, y gestión de carta, mesas y usuarios.
 - Animaciones ambientales: gatos que recorren el salón, clientes sentados según los pedidos activos y mozos que retiran pedidos listos.
 - Interfaz responsive con puntos de corte en 600 y 1024 px, controles táctiles, adaptación a modo apaisado y soporte para `prefers-reduced-motion`.
 - Calidad gráfica adaptable (`alta`, `media`, `baja`) según ancho, densidad de píxeles y núcleos disponibles, con descenso automático por rendimiento y opción para desactivar animaciones.
@@ -75,19 +76,33 @@ Los valores incluidos en `docker-compose.yml` permiten iniciar la demo sin crear
 | Mozo | `mozo@example.com` | `password` |
 | Mozo | `mozo2@example.com` | `password` |
 | Cocina | `cocina@example.com` | `password` |
-| Admin | `admin@example.com` | `password` |
+| Admin | `admin@example.com` | `AdminDemo2026!` |
 
-> Los usuarios, contraseñas y claves incluidas son exclusivamente de demostración. No deben reutilizarse en un entorno público.
+> Los usuarios, contraseñas y claves incluidas son exclusivamente de demostración. No deben reutilizarse en un entorno público. La contraseña del admin es distinta de la del resto de las cuentas demo.
 
 ## Cómo usarlo
 
 1. **Mozo:** iniciá sesión, elegí una mesa en el salón 3D, agregá productos y notas, y enviá el pedido. El pedido se crea en estado `pendiente`.
 2. **Cocina o admin:** ingresá a **Cocina**, abrí el pedido pendiente y usá **Empezar**; después, **Marcar listo**. La cocina no puede cancelar pedidos ni entregarlos.
 3. **Mozo o admin:** cuando el pedido esté `listo`, abrí la mesa y usá **Marcar como entregado**. Un pedido `pendiente` también puede cancelarse desde el panel del mozo.
+4. **Admin:** ingresá a **Panel admin** para consultar métricas e historial, y administrar carta, mesas y usuarios.
 
-El rol `admin` puede entrar tanto al salón como a la cocina. El backend le permite ejecutar cualquier transición válida; la interfaz no expone la cancelación de un pedido que ya está en `preparando`.
+El rol `admin` puede entrar tanto al salón como a la cocina. El backend le permite ejecutar cualquier transición válida; la interfaz no expone la cancelación de un pedido que ya está en `preparando`. La creación de pedidos está reservada al rol `mozo`.
 
-### Permisos por rol y transición
+### Permisos por rol
+
+| Capacidad | Mozo | Cocina | Admin |
+| --- | :---: | :---: | :---: |
+| Ver salón y carta | Sí | Sí | Sí |
+| Ver tablero de cocina | No | Sí | Sí |
+| Crear pedidos | Sí | No | No |
+| Cambiar el estado de un pedido | Según el flujo | Según el flujo | Según el flujo |
+| Ver panel de administración, métricas e historial | No | No | Sí |
+| Gestionar carta, mesas y usuarios | No | No | Sí |
+
+Todas las cuentas activas pueden consultar la carta, las mesas y los pedidos. La creación de pedidos por parte de `cocina` o `admin` responde `403`. El filtrado de vistas en el frontend es complementario: la autorización efectiva se valida en el backend.
+
+### Transiciones de pedido
 
 | Transición | Mozo | Cocina | Admin |
 | --- | :---: | :---: | :---: |
@@ -101,7 +116,7 @@ Las transiciones no listadas se rechazan con `422`. Una transición válida ejec
 
 ## Arquitectura
 
-El frontend consume la API REST para el estado inicial y las acciones, y mantiene la actualización en vivo mediante Laravel Reverb. La API persiste en SQLite y publica los eventos de pedidos en los canales privados `restaurant` y `kitchen`.
+El frontend consume la API REST para el estado inicial y las acciones, y mantiene la actualización en vivo mediante Laravel Reverb. La API persiste en SQLite y publica los eventos de pedidos en los canales privados `restaurant` y `kitchen`; los cambios de carta y mesas se publican en `restaurant`.
 
 ```mermaid
 flowchart LR
@@ -121,21 +136,21 @@ flowchart LR
     Salon -->|"POST /broadcasting/auth"| API
     Cocina -->|"POST /broadcasting/auth"| API
     API -->|"Lectura y escritura"| DB
-    API -->|"OrderCreated<br/>OrderStatusUpdated"| Reverb
+    API -->|"OrderCreated<br/>OrderStatusUpdated<br/>MenuUpdated<br/>TablesUpdated"| Reverb
     Reverb --> Restaurant
     Reverb --> Kitchen
-    Restaurant -->|"Pedidos y estados"| Salon
+    Restaurant -->|"Pedidos, estados, carta y mesas"| Salon
     Restaurant -->|"Pedidos y estados"| Cocina
     Kitchen -.->|"Autorizado para cocina/admin"| Cocina
 ```
 
-La SPA se suscribe al canal `restaurant` desde `useOrders`; el canal `kitchen` está autorizado para `cocina` y `admin` en `routes/channels.php`. La autorización de canales privados se resuelve contra `POST /broadcasting/auth` con el token de Sanctum.
+La SPA se suscribe al canal `restaurant` desde `useOrders` y `useMenu`; el panel admin también escucha `TablesUpdated` para mantener actualizado el plano. El canal `kitchen` está autorizado para `cocina` y `admin` en `routes/channels.php`. La autorización de canales privados se resuelve contra `POST /broadcasting/auth` con el token de Sanctum.
 
 ### Ciclo de vida de un pedido
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pendiente: Mozo o admin crea el pedido
+    [*] --> Pendiente: Mozo crea el pedido
     Pendiente --> Preparando: Cocina o admin
     Pendiente --> Cancelado: Mozo o admin
     Preparando --> Listo: Cocina o admin
@@ -169,28 +184,49 @@ stateDiagram-v2
 
 ## API y tiempo real
 
-Todas las rutas `/api/*`, excepto `POST /api/login`, requieren `Authorization: Bearer <token>`. Los recursos se devuelven envueltos en `data`, salvo las respuestas indicadas.
+Todas las rutas `/api/*`, excepto `POST /api/login`, requieren `Authorization: Bearer <token>`. Las colecciones y recursos Eloquent se devuelven envueltos en `data`; `POST /api/login` y las métricas devuelven JSON plano, y el historial admin agrega `meta` de paginación. El historial se pagina de a 20 pedidos.
 
 | Método | Ruta | Rol | Descripción |
 | --- | --- | --- | --- |
 | `POST` | `/api/login` | Público | Valida email y contraseña, y devuelve un token de Sanctum y el usuario. Límite: 5 intentos por minuto por IP. |
 | `POST` | `/api/logout` | Autenticado | Revoca el token actual. Responde `204`. |
 | `GET` | `/api/me` | Autenticado | Devuelve el usuario autenticado. |
-| `GET` | `/api/tables` | Autenticado | Lista las mesas con su estado derivado de los pedidos activos. |
+| `GET` | `/api/tables` | Autenticado | Lista las mesas activas con su estado derivado de los pedidos activos. |
 | `GET` | `/api/products` | Autenticado | Lista los productos disponibles, ordenados por categoría y nombre. |
-| `PATCH` | `/api/products/{product}/availability` | `admin` | Actualiza `is_available` de un producto. |
 | `GET` | `/api/orders` | Autenticado | Lista pedidos; acepta el filtro opcional `?status=`. |
-| `POST` | `/api/orders` | `mozo`, `admin` | Crea un pedido con mesa, ítems y notas. Límite: 30 por minuto por usuario/IP. |
+| `POST` | `/api/orders` | `mozo` | Crea un pedido con mesa, ítems y notas. Límite: 30 por minuto por usuario/IP. |
 | `PATCH` | `/api/orders/{order}/status` | Autenticado, según `OrderPolicy` | Cambia el estado si la transición y el rol están permitidos. |
+| `PATCH` | `/api/products/{product}/availability` | `admin` | Actualiza `is_available` de un producto. Se conserva por compatibilidad; el panel usa la ruta admin. |
+| `GET` | `/api/admin/orders` | `admin` | Historial paginado con totales; filtros opcionales `from`, `to`, `status`, `table_id` y `user_id`. |
+| `GET` | `/api/admin/stats/summary` | `admin` | Totales, ticket promedio, tiempos medios y pedidos por estado para el período `from`/`to`. |
+| `GET` | `/api/admin/stats/top-products` | `admin` | Productos más vendidos en el período; acepta `from`, `to` y `limit` (5 por defecto). |
+| `GET` | `/api/admin/stats/sales-by-hour` | `admin` | Ventas y pedidos agrupados por hora; acepta `date` (hoy por defecto). |
+| `GET` | `/api/admin/stats/by-waiter` | `admin` | Pedidos y ventas por mozo en el período `from`/`to`. |
+| `GET` | `/api/admin/products` | `admin` | Lista todos los productos, incluidos los no disponibles; filtros `category` y `available`. |
+| `POST` | `/api/admin/products` | `admin` | Crea un producto. |
+| `PUT` | `/api/admin/products/{product}` | `admin` | Actualiza un producto. |
+| `PATCH` | `/api/admin/products/{product}/availability` | `admin` | Actualiza la disponibilidad y notifica por WebSocket. |
+| `POST` | `/api/admin/tables` | `admin` | Crea una mesa y valida que no se superponga con otra. |
+| `PUT` | `/api/admin/tables/{table}` | `admin` | Actualiza número, capacidad y posición de una mesa. |
+| `DELETE` | `/api/admin/tables/{table}` | `admin` | Elimina la mesa o la desactiva si tiene historial; rechaza mesas con pedidos activos. |
+| `GET` | `/api/admin/users` | `admin` | Lista usuarios; filtro opcional `role`. |
+| `POST` | `/api/admin/users` | `admin` | Crea un usuario. |
+| `PUT` | `/api/admin/users/{user}` | `admin` | Actualiza nombre, email y rol de un usuario. |
+| `PATCH` | `/api/admin/users/{user}/password` | `admin` | Cambia la contraseña y revoca los tokens del usuario. |
+| `PATCH` | `/api/admin/users/{user}/active` | `admin` | Activa o desactiva una cuenta; al desactivarla revoca sus tokens. |
+
+Los rangos de fecha usan `Y-m-d`, aceptan `from`/`to` opcionales y no pueden superar los 366 días. Sin fechas, las métricas usan el día actual. `from` se interpreta desde el inicio del día y `to` hasta el final del día.
 
 ### Canales y eventos
 
-Los eventos de pedidos se emiten a los canales `restaurant` y `kitchen`. La SPA se suscribe a `restaurant`; `kitchen` queda habilitado para usuarios `cocina` y `admin`. La autorización de canales privados se realiza con `POST /broadcasting/auth`.
+Los eventos de pedidos se emiten a los canales `restaurant` y `kitchen`. La SPA se suscribe a `restaurant`; `kitchen` queda habilitado para usuarios `cocina` y `admin`. Los cambios de carta y mesas también se publican en `restaurant`. La autorización de canales privados se realiza con `POST /broadcasting/auth`.
 
 | Canal | Tipo | Quién puede escuchar | Evento | Payload resumido |
 | --- | --- | --- | --- | --- |
 | `restaurant` | Privado | Cualquier usuario autenticado | `OrderCreated` | `order`, `table_id`, `table_status` |
 | `restaurant` | Privado | Cualquier usuario autenticado | `OrderStatusUpdated` | `order_id`, `table_id`, `status`, `table_status` |
+| `restaurant` | Privado | Cualquier usuario autenticado | `MenuUpdated` | `product_id`, `action`, `is_available` |
+| `restaurant` | Privado | Cualquier usuario autenticado | `TablesUpdated` | `table_id`, `action`, `is_active` |
 | `kitchen` | Privado | `cocina`, `admin` | `OrderCreated` | `order`, `table_id`, `table_status` |
 | `kitchen` | Privado | `cocina`, `admin` | `OrderStatusUpdated` | `order_id`, `table_id`, `status`, `table_status` |
 | `style-channel` | Público | Cualquiera | `RemoteStyleUpdate` | `newText`, `newStyle` |
@@ -204,14 +240,14 @@ Los eventos de pedidos se emiten a los canales `restaurant` y `kitchen`. La SPA 
 ├── backend/
 │   ├── app/
 │   │   ├── Enums/                 # OrderStatus y ProductCategory
-│   │   ├── Events/                # OrderCreated, OrderStatusUpdated y RemoteStyleUpdate
+│   │   ├── Events/                # Eventos de pedidos, carta, mesas y demo WebSocket
 │   │   ├── Http/                  # Controladores, middleware, requests y resources
 │   │   ├── Models/                # Order, OrderItem, Product, Table y User
 │   │   ├── Policies/              # Reglas de transición por rol
-│   │   └── Services/              # OrderService
+│   │   └── Services/              # Pedidos, carta, mesas, usuarios y métricas
 │   ├── database/
 │   │   ├── migrations/            # Esquema de usuarios, mesas, productos y pedidos
-│   │   ├── seeders/               # Usuarios, ocho mesas y quince productos demo
+│   │   ├── seeders/               # Usuarios, mesas y productos demo
 │   │   └── database.sqlite        # Base local, fuera de Git
 │   ├── resources/views/           # Vistas Blade de la demo WebSocket
 │   ├── routes/
@@ -223,13 +259,14 @@ Los eventos de pedidos se emiten a los canales `restaurant` y `kitchen`. La SPA 
 ├── frontend/
 │   ├── src/
 │   │   ├── assets/                # Logo y recursos gráficos
-│   │   ├── components/            # Salón 3D, panel de pedidos, cocina y animaciones
+│   │   ├── components/            # Salón 3D, panel de pedidos, cocina y panel admin
 │   │   ├── constants/orderStatus.js
 │   │   ├── context/               # Sesión y notificaciones toast
-│   │   ├── hooks/                 # useOrders, breakpoints y estado de conexión
-│   │   ├── pages/                 # Login, salón y cocina
+│   │   ├── hooks/                 # useOrders, useMenu, breakpoints y conexión
+│   │   ├── pages/                 # Login, salón, cocina y panel admin
+│   │   ├── services/              # Cliente de la API
 │   │   ├── styles/                # Tema, breakpoints y estilos globales
-│   │   ├── utils/                 # Calidad gráfica, precios y navegación
+│   │   ├── utils/                 # Calidad gráfica, fechas, precios y navegación
 │   │   └── lib/echo.js            # Cliente Laravel Echo
 │   ├── public/
 │   └── package.json
@@ -367,10 +404,8 @@ Para acceder desde otro dispositivo de la red, configurá la IP de la máquina e
 Las siguientes ideas no están implementadas actualmente:
 
 - [ ] Cierre de mesa y cuenta.
-- [ ] Historial y reportes de pedidos más allá del listado actual.
-- [ ] CRUD de carta y usuarios desde una interfaz de administración; hoy solo existe el cambio de disponibilidad por API.
 - [ ] Notificaciones push fuera del navegador.
-- [ ] Tests end-to-end del flujo completo con los tres roles.
+- [ ] Tests end-to-end automatizados del flujo completo con los tres roles.
 
 ## Créditos y licencias
 

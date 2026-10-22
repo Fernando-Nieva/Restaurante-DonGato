@@ -10,7 +10,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['table_id', 'user_id', 'status', 'notes'])]
+#[Fillable([
+    'table_id',
+    'user_id',
+    'status',
+    'notes',
+    'preparing_at',
+    'ready_at',
+    'delivered_at',
+    'cancelled_at',
+])]
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
@@ -25,6 +34,10 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'preparing_at' => 'datetime',
+            'ready_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

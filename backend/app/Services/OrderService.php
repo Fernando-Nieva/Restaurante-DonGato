@@ -76,7 +76,23 @@ class OrderService
             );
         }
 
-        $order->update(['status' => $to]);
+        DB::transaction(function () use ($order, $to): void {
+            $timestampColumn = match ($to) {
+                OrderStatus::Preparando => 'preparing_at',
+                OrderStatus::Listo => 'ready_at',
+                OrderStatus::Entregado => 'delivered_at',
+                OrderStatus::Cancelado => 'cancelled_at',
+                OrderStatus::Pendiente => null,
+            };
+
+            $attributes = ['status' => $to];
+
+            if ($timestampColumn !== null) {
+                $attributes[$timestampColumn] = now();
+            }
+
+            $order->update($attributes);
+        });
 
         OrderStatusUpdated::dispatch($order, $this->getTableStatus($order->table));
 

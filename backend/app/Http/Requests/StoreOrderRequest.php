@@ -15,7 +15,7 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'table_id' => ['required', 'integer', Rule::exists('tables', 'id')],
+            'table_id' => ['required', 'integer', Rule::exists('tables', 'id')->where('is_active', true)],
             'notes' => ['nullable', 'string', 'max:500'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => [

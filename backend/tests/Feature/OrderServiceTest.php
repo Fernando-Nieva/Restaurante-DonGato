@@ -95,12 +95,15 @@ class OrderServiceTest extends TestCase
 
         $this->service->updateStatus($order, OrderStatus::Preparando);
         $this->assertSame(OrderStatus::Preparando, $order->status);
+        $this->assertNotNull($order->preparing_at);
 
         $this->service->updateStatus($order, OrderStatus::Listo);
         $this->assertSame(OrderStatus::Listo, $order->status);
+        $this->assertNotNull($order->ready_at);
 
         $this->service->updateStatus($order, OrderStatus::Entregado);
         $this->assertSame(OrderStatus::Entregado, $order->status);
+        $this->assertNotNull($order->delivered_at);
 
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'entregado']);
     }
@@ -111,12 +114,15 @@ class OrderServiceTest extends TestCase
 
         $this->service->updateStatus($pending, OrderStatus::Cancelado);
         $this->assertSame(OrderStatus::Cancelado, $pending->status);
+        $this->assertNotNull($pending->cancelled_at);
 
         $preparing = Order::factory()->create();
 
         $this->service->updateStatus($preparing, OrderStatus::Preparando);
         $this->service->updateStatus($preparing, OrderStatus::Cancelado);
         $this->assertSame(OrderStatus::Cancelado, $preparing->status);
+        $this->assertNotNull($preparing->preparing_at);
+        $this->assertNotNull($preparing->cancelled_at);
     }
 
     public function test_update_status_rejects_invalid_transitions(): void

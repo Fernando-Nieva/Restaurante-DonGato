@@ -23,8 +23,14 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Las credenciales no son válidas.'],
+                'email' => ['Las credenciales no son vA�lidas.'],
             ]);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'message' => "Tu cuenta est\u{00E1} desactivada. Contact\u{00E1} a un administrador.",
+            ], 403);
         }
 
         return response()->json([

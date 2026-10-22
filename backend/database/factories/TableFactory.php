@@ -22,7 +22,8 @@ class TableFactory extends Factory
             'seats' => fake()->numberBetween(2, 8),
             'pos_x' => fake()->randomFloat(2, -8, 8),
             'pos_y' => 0,
-            'pos_z' => fake()->randomFloat(2, -8, 8),
+            'pos_z' => fake()->randomFloat(2, -6, 6),
+            'is_active' => true,
         ];
     }
 }

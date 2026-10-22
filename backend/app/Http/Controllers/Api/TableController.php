@@ -15,7 +15,7 @@ class TableController extends Controller
      */
     public function index(OrderService $orderService): AnonymousResourceCollection
     {
-        $tables = Table::query()->orderBy('number')->get();
+        $tables = Table::query()->where('is_active', true)->orderBy('number')->get();
 
         foreach ($tables as $table) {
             $table->setAttribute('status', $orderService->getTableStatus($table));

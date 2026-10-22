@@ -169,6 +169,18 @@ export default function useOrders() {
         }
     }, [handleUnauthorized]);
 
+    const reloadTables = useCallback(async () => {
+        try {
+            const payload = await request('/api/tables');
+
+            setTables(extractList(payload));
+        } catch (error) {
+            if (await handleUnauthorized(error)) return;
+
+            console.error('No se pudieron recargar las mesas:', error);
+        }
+    }, [handleUnauthorized]);
+
     const consumeReady = useCallback(() => {
         const queue = readyQueue.current;
 
@@ -246,15 +258,37 @@ export default function useOrders() {
             }
         };
 
+        const handleTablesUpdated = (payload) => {
+            if (!payload || typeof payload !== 'object') return;
+
+            const tableId = payload.table_id;
+            const action = String(payload.action ?? '').toLowerCase();
+
+            if (
+                tableId != null &&
+                (action === 'deleted' || action === 'deactivated' || payload.is_active === false)
+            ) {
+                setTables((previous) =>
+                    previous.filter((table) => String(table.id) !== String(tableId)),
+                );
+                return;
+            }
+
+            reloadTables();
+        };
+
         const channel = echo.private(CHANNEL_NAME);
 
         channel.listen('OrderCreated', handleOrderCreated);
         channel.listen('OrderStatusUpdated', handleStatusUpdated);
+        channel.listen('TablesUpdated', handleTablesUpdated);
 
         return () => {
-            echo.leave(CHANNEL_NAME);
+            channel.stopListening('OrderCreated', handleOrderCreated);
+            channel.stopListening('OrderStatusUpdated', handleStatusUpdated);
+            channel.stopListening('TablesUpdated', handleTablesUpdated);
         };
-    }, [echo, reloadOrders]);
+    }, [echo, reloadOrders, reloadTables]);
 
     const createOrder = useCallback(
         async (payload) => {

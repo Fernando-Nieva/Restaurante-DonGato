@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['number', 'seats', 'pos_x', 'pos_y', 'pos_z'])]
+#[Fillable(['number', 'seats', 'pos_x', 'pos_y', 'pos_z', 'is_active'])]
 class Table extends Model
 {
     /** @use HasFactory<TableFactory> */
@@ -27,6 +27,7 @@ class Table extends Model
             'pos_x' => 'decimal:2',
             'pos_y' => 'decimal:2',
             'pos_z' => 'decimal:2',
+            'is_active' => 'boolean',
         ];
     }
 

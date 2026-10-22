@@ -119,4 +119,21 @@ class OrderApiTest extends TestCase
 
         $this->assertDatabaseCount('orders', 0);
     }
+
+    public function test_admin_cannot_create_orders(): void
+    {
+        $table = Table::factory()->create();
+        $product = Product::factory()->create();
+
+        $this->withToken($this->tokenFor('admin'))
+            ->postJson('/api/orders', [
+                'table_id' => $table->id,
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('orders', 0);
+    }
 }

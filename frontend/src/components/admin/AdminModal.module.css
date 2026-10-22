@@ -1,0 +1,150 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-panel) + 2);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-3) calc(var(--space-3) + var(--safe-right))
+        calc(var(--space-3) + var(--safe-bottom)) calc(var(--space-3) + var(--safe-left));
+    background-color: color-mix(in srgb, var(--color-chocolate) 62%, transparent);
+    animation: fade-in 0.16s ease-out;
+}
+
+.dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 520px;
+    max-height: min(88dvh, 780px);
+    overflow: hidden;
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-lg);
+    animation: sheet-in 0.2s ease-out;
+}
+
+.wide {
+    max-width: 760px;
+}
+
+.header {
+    display: flex;
+    flex: none;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background-color: var(--color-cream);
+    border-bottom: 1px solid var(--color-line);
+}
+
+.title {
+    margin: 0;
+    font-size: clamp(1.3rem, 5vw, 1.65rem);
+    line-height: 1.15;
+}
+
+.close {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: var(--color-brown);
+    cursor: pointer;
+    background-color: var(--color-cream-dark);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+}
+
+.close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    padding: var(--space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--color-line) transparent;
+    scrollbar-width: thin;
+}
+
+.footer {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) calc(var(--space-4) + var(--safe-bottom));
+    background-color: var(--color-cream-dark);
+    border-top: 1px solid var(--color-line);
+}
+
+@media (min-width: 600px) {
+    .overlay {
+        align-items: center;
+        padding: var(--space-5);
+    }
+
+    .dialog {
+        border-radius: var(--radius-lg);
+        animation: dialog-in 0.18s ease-out;
+    }
+
+    .header,
+    .body {
+        padding: var(--space-5);
+    }
+
+    .footer {
+        padding: var(--space-4) var(--space-5);
+    }
+}
+
+@media (hover: hover) {
+    .close:hover {
+        color: var(--color-chocolate);
+        background-color: var(--color-line);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes sheet-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.99);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

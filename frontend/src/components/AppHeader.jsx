@@ -25,6 +25,7 @@ export default function AppHeader() {
 
     const role = String(user?.role ?? '').toLowerCase();
     const canSeeKitchen = KITCHEN_ROLES.includes(role);
+    const canSeeAdmin = role === 'admin';
     const roleLabel = ROLE_LABELS[role] ?? (role || 'Usuario');
     const userName = user?.name ?? user?.email ?? 'Usuario';
 
@@ -73,6 +74,11 @@ export default function AppHeader() {
                         Cocina
                     </NavLink>
                 )}
+                {canSeeAdmin && (
+                    <NavLink to="/admin" className={navLinkClass}>
+                        Administración
+                    </NavLink>
+                )}
             </nav>
 
             <div className={styles.actions}>
@@ -118,6 +124,11 @@ export default function AppHeader() {
                     {canSeeKitchen && (
                         <NavLink to="/cocina" className={navLinkClass} onClick={closeMenu}>
                             Cocina
+                        </NavLink>
+                    )}
+                    {canSeeAdmin && (
+                        <NavLink to="/admin" className={navLinkClass} onClick={closeMenu}>
+                            Administración
                         </NavLink>
                     )}
 

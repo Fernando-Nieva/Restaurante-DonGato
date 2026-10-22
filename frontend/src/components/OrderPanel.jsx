@@ -6,11 +6,10 @@ import {
     ORDER_STATUS_LABELS,
 } from '../constants/orderStatus';
 import { useToast } from '../context/ToastContext';
+import useMenu from '../hooks/useMenu';
 import { formatPrice } from '../utils/formatPrice';
 import StatusIcon from './StatusIcon';
 import styles from './OrderPanel.module.css';
-
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 const CATEGORY_TITLES = {
     pizza: 'Pizzas',
@@ -46,28 +45,6 @@ const orderTableId = (order) => order.table_id ?? order.table?.id ?? null;
 
 const normalizeStatus = (status) => String(status ?? '').toLowerCase();
 
-const authHeaders = () => {
-    const token = localStorage.getItem('token');
-
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-const fetchProducts = async (signal) => {
-    const response = await fetch(`${API_URL}/api/products`, {
-        signal,
-        headers: { Accept: 'application/json', ...authHeaders() },
-    });
-
-    if (!response.ok) throw new Error(`GET /api/products respondió ${response.status}`);
-
-    const payload = await response.json();
-
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.data)) return payload.data;
-
-    return [];
-};
-
 function SeatIcon() {
     return (
         <svg
@@ -86,10 +63,7 @@ function SeatIcon() {
 }
 
 export default function OrderPanel({ table, orders = [], createOrder, updateStatus, onClose }) {
-    const [products, setProducts] = useState([]);
-    const [loadingProducts, setLoadingProducts] = useState(true);
-    const [productsError, setProductsError] = useState(false);
-    const [reloadKey, setReloadKey] = useState(0);
+    const { products, loading: loadingProducts, error: productsError, reload } = useMenu();
     const [activeCategory, setActiveCategory] = useState(CATEGORY_KEYS[0]);
     const [cart, setCart] = useState({});
     const [generalNotes, setGeneralNotes] = useState('');
@@ -97,38 +71,6 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
     const [busyOrderIds, setBusyOrderIds] = useState(() => new Set());
     const [cancelOrderId, setCancelOrderId] = useState(null);
     const { addToast } = useToast();
-
-    useEffect(() => {
-        const controller = new AbortController();
-        let active = true;
-
-        const load = async () => {
-            setLoadingProducts(true);
-            setProductsError(false);
-
-            try {
-                const list = await fetchProducts(controller.signal);
-
-                if (!active) return;
-
-                setProducts(list);
-            } catch (error) {
-                if (active && error.name !== 'AbortError') {
-                    console.error('No se pudieron cargar los productos:', error);
-                    setProductsError(true);
-                }
-            } finally {
-                if (active) setLoadingProducts(false);
-            }
-        };
-
-        load();
-
-        return () => {
-            active = false;
-            controller.abort();
-        };
-    }, [reloadKey]);
 
     useEffect(() => {
         setCart({});
@@ -419,7 +361,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                             <button
                                 type="button"
                                 className={styles.linkButton}
-                                onClick={() => setReloadKey((key) => key + 1)}
+                                onClick={reload}
                             >
                                 Reintentar
                             </button>

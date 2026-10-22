@@ -4,18 +4,19 @@ import logoUrl from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 import styles from './LoginPage.module.css';
 
-const DEMO_USERS = [
-    { label: 'Mozo', email: 'mozo@example.com' },
-    { label: 'Cocina', email: 'cocina@example.com' },
-    { label: 'Admin', email: 'admin@example.com' },
-];
-
 const DEMO_PASSWORD = 'password';
+const ADMIN_DEMO_PASSWORD = 'AdminDemo2026!';
+
+const DEMO_USERS = [
+    { label: 'Mozo', email: 'mozo@example.com', password: DEMO_PASSWORD },
+    { label: 'Cocina', email: 'cocina@example.com', password: DEMO_PASSWORD },
+    { label: 'Admin', email: 'admin@example.com', password: ADMIN_DEMO_PASSWORD },
+];
 
 const FRIENDLY_ERROR = 'No pudimos iniciar sesión. Revisá tu email y contraseña e intentá de nuevo.';
 
 export default function LoginPage() {
-    const { token, login } = useAuth();
+    const { token, user, login } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -23,7 +24,12 @@ export default function LoginPage() {
     const [submitting, setSubmitting] = useState(false);
 
     if (token) {
-        return <Navigate to="/restaurante" replace />;
+        return (
+            <Navigate
+                to={String(user?.role ?? '').toLowerCase() === 'admin' ? '/admin' : '/restaurante'}
+                replace
+            />
+        );
     }
 
     const handleSubmit = async (event) => {
@@ -33,8 +39,13 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            await login(email, password);
-            navigate('/restaurante', { replace: true });
+            const loggedUser = await login(email, password);
+            const target =
+                String(loggedUser?.role ?? '').toLowerCase() === 'admin'
+                    ? '/admin'
+                    : '/restaurante';
+
+            navigate(target, { replace: true });
         } catch (loginError) {
             console.error('No se pudo iniciar sesión:', loginError);
             setError(FRIENDLY_ERROR);
@@ -43,9 +54,9 @@ export default function LoginPage() {
         }
     };
 
-    const fillDemoUser = (demoEmail) => {
+    const fillDemoUser = ({ email: demoEmail, password: demoPassword }) => {
         setEmail(demoEmail);
-        setPassword(DEMO_PASSWORD);
+        setPassword(demoPassword);
         setError(null);
     };
 
@@ -110,7 +121,8 @@ export default function LoginPage() {
                     <aside className={styles.demo} aria-label="Accesos rápidos de desarrollo">
                         <p className={styles.demoTitle}>Acceso rápido (solo desarrollo)</p>
                         <p className={styles.demoHint}>
-                            Rellena las credenciales de prueba. Contraseña: <code>password</code>
+                            Rellena las credenciales de prueba. Contraseña: <code>{DEMO_PASSWORD}</code>{' '}
+                            (mozo y cocina) o <code>{ADMIN_DEMO_PASSWORD}</code> (admin).
                         </p>
                         <div className={styles.demoButtons}>
                             {DEMO_USERS.map((demo) => (
@@ -118,7 +130,7 @@ export default function LoginPage() {
                                     key={demo.email}
                                     type="button"
                                     className={styles.demoButton}
-                                    onClick={() => fillDemoUser(demo.email)}
+                                    onClick={() => fillDemoUser(demo)}
                                 >
                                     {demo.label}
                                 </button>
