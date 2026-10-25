@@ -4,15 +4,6 @@ import logoUrl from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 import styles from './LoginPage.module.css';
 
-const DEMO_PASSWORD = 'password';
-const ADMIN_DEMO_PASSWORD = 'AdminDemo2026!';
-
-const DEMO_USERS = [
-    { label: 'Mozo', email: 'mozo@example.com', password: DEMO_PASSWORD },
-    { label: 'Cocina', email: 'cocina@example.com', password: DEMO_PASSWORD },
-    { label: 'Admin', email: 'admin@example.com', password: ADMIN_DEMO_PASSWORD },
-];
-
 const FRIENDLY_ERROR = 'No pudimos iniciar sesión. Revisá tu email y contraseña e intentá de nuevo.';
 
 export default function LoginPage() {
@@ -52,12 +43,6 @@ export default function LoginPage() {
         } finally {
             setSubmitting(false);
         }
-    };
-
-    const fillDemoUser = ({ email: demoEmail, password: demoPassword }) => {
-        setEmail(demoEmail);
-        setPassword(demoPassword);
-        setError(null);
     };
 
     return (
@@ -116,28 +101,6 @@ export default function LoginPage() {
                         {submitting ? 'Ingresando…' : 'Ingresar'}
                     </button>
                 </form>
-
-                {import.meta.env.DEV && (
-                    <aside className={styles.demo} aria-label="Accesos rápidos de desarrollo">
-                        <p className={styles.demoTitle}>Acceso rápido (solo desarrollo)</p>
-                        <p className={styles.demoHint}>
-                            Rellena las credenciales de prueba. Contraseña: <code>{DEMO_PASSWORD}</code>{' '}
-                            (mozo y cocina) o <code>{ADMIN_DEMO_PASSWORD}</code> (admin).
-                        </p>
-                        <div className={styles.demoButtons}>
-                            {DEMO_USERS.map((demo) => (
-                                <button
-                                    key={demo.email}
-                                    type="button"
-                                    className={styles.demoButton}
-                                    onClick={() => fillDemoUser(demo)}
-                                >
-                                    {demo.label}
-                                </button>
-                            ))}
-                        </div>
-                    </aside>
-                )}
             </section>
         </main>
     );

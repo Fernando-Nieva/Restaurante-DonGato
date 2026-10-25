@@ -164,57 +164,6 @@
     animation: spin 0.7s linear infinite;
 }
 
-.demo {
-    margin-top: var(--space-5);
-    padding-top: var(--space-4);
-    border-top: 1px dashed var(--color-line);
-}
-
-.demoTitle {
-    margin: 0 0 4px;
-    font-size: var(--text-xs);
-    font-weight: 700;
-    color: var(--color-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.demoHint {
-    margin: 0 0 var(--space-3);
-    font-size: var(--text-xs);
-    color: var(--color-muted);
-}
-
-.demoHint code {
-    padding: 1px 5px;
-    color: var(--color-brown);
-    background-color: var(--color-cream-dark);
-    border-radius: 4px;
-}
-
-.demoButtons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
-.demoButton {
-    min-height: 44px;
-    padding: 0 var(--space-3);
-    font-family: var(--font-display);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--color-brown);
-    cursor: pointer;
-    background-color: transparent;
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-pill);
-}
-
-.demoButton:active {
-    background-color: var(--color-cream-dark);
-}
-
 @media (min-width: 600px) {
     .page {
         padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-5) + var(--safe-right))
@@ -243,12 +192,6 @@
         background-color: var(--color-orange-dark);
         box-shadow: 0 8px 18px color-mix(in srgb, var(--color-orange-dark) 30%, transparent);
         transform: translateY(-1px);
-    }
-
-    .demoButton:hover {
-        color: var(--color-chocolate);
-        background-color: var(--color-cream-dark);
-        border-color: color-mix(in srgb, var(--color-line) 65%, var(--color-brown));
     }
 }
 
