@@ -21,7 +21,14 @@ class TableResource extends JsonResource
             'pos_x' => (float) $this->pos_x,
             'pos_y' => (float) $this->pos_y,
             'pos_z' => (float) $this->pos_z,
+            'zone' => $this->zone->value,
             'status' => $this->status,
+            'reservation' => $this->reservation
+                ? new TableReservationResource($this->reservation)
+                : null,
+            'next_reservation' => $this->next_reservation
+                ? new TableReservationResource($this->next_reservation)
+                : null,
         ];
     }
 }

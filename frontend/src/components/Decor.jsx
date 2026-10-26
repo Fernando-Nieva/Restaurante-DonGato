@@ -4,9 +4,9 @@ import { AdditiveBlending, CanvasTexture } from 'three';
 import GlbModel from './GlbModel';
 import ModelErrorBoundary from './ModelErrorBoundary';
 import { MODEL_CONFIG } from './modelConfig';
-import { ROOM_LAYOUT } from './roomLayout';
+import { ROOM_LAYOUT, TERRACE } from './roomLayout';
 
-const { minX, maxX, minZ, maxZ, deckY } = ROOM_LAYOUT;
+const { minX, maxX, minZ, maxZ } = ROOM_LAYOUT;
 
 const LANTERN_SWAY = 0.035;
 const LANTERN_SWAY_SPEED = 0.85;
@@ -123,21 +123,21 @@ const PLANTS = [
     {
         id: 'planta-deck-derecha',
         modelKey: 'plantSmall',
-        position: [maxX - 1.0, deckY, maxZ + 0.8],
+        position: [maxX - 1.0, TERRACE.deckY, maxZ + 0.8],
         fallback: SMALL_PLANT_FALLBACK,
         animation: { type: 'plant', phase: 3.2 },
     },
     {
         id: 'planta-deck-frente-izquierda',
         modelKey: 'plantLarge',
-        position: [minX - 0.9, deckY, maxZ + 0.9],
+        position: [minX - 0.9, TERRACE.deckY, maxZ + 0.9],
         fallback: LARGE_PLANT_FALLBACK,
         animation: { type: 'plant', phase: 4.4 },
     },
     {
         id: 'planta-deck-frente-derecha',
         modelKey: 'plantLarge',
-        position: [maxX + 0.9, deckY, maxZ + 0.9],
+        position: [maxX + 0.9, TERRACE.deckY, maxZ + 0.9],
         fallback: LARGE_PLANT_FALLBACK,
         animation: { type: 'plant', phase: 5.6 },
     },

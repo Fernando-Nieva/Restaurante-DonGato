@@ -7,7 +7,9 @@ import {
 } from '../constants/orderStatus';
 import { useToast } from '../context/ToastContext';
 import useMenu from '../hooks/useMenu';
+import { getApiErrorMessage, getFieldError } from '../services/api';
 import { formatPrice } from '../utils/formatPrice';
+import { tableDisplayName } from '../utils/table';
 import StatusIcon from './StatusIcon';
 import styles from './OrderPanel.module.css';
 
@@ -62,7 +64,14 @@ function SeatIcon() {
     );
 }
 
-export default function OrderPanel({ table, orders = [], createOrder, updateStatus, onClose }) {
+export default function OrderPanel({
+    table,
+    orders = [],
+    createOrder,
+    updateStatus,
+    seatReservation,
+    onClose,
+}) {
     const { products, loading: loadingProducts, error: productsError, reload } = useMenu();
     const [activeCategory, setActiveCategory] = useState(CATEGORY_KEYS[0]);
     const [cart, setCart] = useState({});
@@ -70,12 +79,15 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
     const [sending, setSending] = useState(false);
     const [busyOrderIds, setBusyOrderIds] = useState(() => new Set());
     const [cancelOrderId, setCancelOrderId] = useState(null);
+    const [seating, setSeating] = useState(false);
+    const [seatError, setSeatError] = useState('');
     const { addToast } = useToast();
 
     useEffect(() => {
         setCart({});
         setGeneralNotes('');
         setCancelOrderId(null);
+        setSeatError('');
     }, [table.id]);
 
     const visibleProducts = useMemo(
@@ -112,9 +124,13 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
         0,
     );
 
-    const tableNumber = table.number ?? table.name ?? table.id;
+    const displayName = tableDisplayName(table);
     const seats = Number(table.seats);
     const hasSeats = Number.isFinite(seats) && seats > 0;
+    const reservation = table.reservation ?? null;
+    const isReserved = normalizeStatus(table.status) === 'reservada' || Boolean(reservation);
+    const orderingDisabled = isReserved;
+    const reservationParty = Number(reservation?.party_size) || 0;
 
     const changeQuantity = (productId, delta) => {
         setCart((previous) => {
@@ -167,7 +183,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
     };
 
     const handleSubmit = async () => {
-        if (sending || totalQuantity === 0) return;
+        if (sending || orderingDisabled || totalQuantity === 0) return;
 
         const submittedQuantity = totalQuantity;
 
@@ -189,7 +205,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
             addToast({
                 type: 'success',
                 title: 'Pedido enviado',
-                message: `Mesa ${tableNumber} · ${submittedQuantity} ítem${
+                message: `${displayName} · ${submittedQuantity} ítem${
                     submittedQuantity === 1 ? '' : 's'
                 }`,
             });
@@ -198,24 +214,56 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
             addToast({
                 type: 'error',
                 title: 'No se pudo enviar el pedido',
-                message: 'Revisá la conexión e intentá de nuevo.',
+                message:
+                    getFieldError(error, 'table_id') ??
+                    getFieldError(error, 'reservation') ??
+                    getApiErrorMessage(error, 'Revisá la conexión e intentá de nuevo.'),
             });
         } finally {
             setSending(false);
         }
     };
 
+    const handleSeat = async () => {
+        if (!reservation || !seatReservation || seating) return;
+
+        setSeating(true);
+        setSeatError('');
+
+        try {
+            await seatReservation(reservation.id);
+            addToast({
+                type: 'success',
+                title: 'Reserva sentada',
+                message: `${displayName} habilitada para tomar el pedido.`,
+            });
+        } catch (error) {
+            const message =
+                getFieldError(error, 'reservation') ??
+                getApiErrorMessage(error, 'No se pudo sentar la reserva.');
+
+            setSeatError(message);
+            addToast({
+                type: 'error',
+                title: 'No se pudo sentar la reserva',
+                message,
+            });
+        } finally {
+            setSeating(false);
+        }
+    };
+
     return (
         <aside
             className={styles.panel}
-            aria-label={`Pedido de mesa ${tableNumber}`}
+            aria-label={`Pedido de ${displayName}`}
             data-order-panel
         >
             <div className={styles.grabber} aria-hidden="true" />
 
             <header className={styles.header}>
                 <div className={styles.headerInfo}>
-                    <h2 className={styles.title}>Mesa {tableNumber}</h2>
+                    <h2 className={styles.title}>{displayName}</h2>
                     {hasSeats && (
                         <p className={styles.seats}>
                             <SeatIcon />
@@ -237,6 +285,56 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
             </header>
 
             <div className={styles.content}>
+                {isReserved && (
+                    <section className={styles.reservationCard}>
+                        <div className={styles.reservationTop}>
+                            <span className={styles.reservationBadge}>Reserva</span>
+                            {reservation?.reserved_for && (
+                                <span className={styles.reservationTime}>
+                                    {formatTime(reservation.reserved_for)}
+                                </span>
+                            )}
+                        </div>
+
+                        <p className={styles.reservationName}>
+                            {reservation?.customer_name ?? 'Mesa reservada'}
+                        </p>
+
+                        {reservation && (
+                            <p className={styles.reservationMeta}>
+                                {reservationParty} persona{reservationParty === 1 ? '' : 's'}
+                            </p>
+                        )}
+
+                        {reservation?.notes && (
+                            <p className={styles.reservationNotes}>{reservation.notes}</p>
+                        )}
+
+                        {reservation && (
+                            <button
+                                type="button"
+                                className={styles.seatButton}
+                                onClick={handleSeat}
+                                disabled={seating || !seatReservation}
+                                aria-busy={seating}
+                            >
+                                {seating && <span className={styles.spinner} aria-hidden="true" />}
+                                {seating ? 'Sentando…' : 'Sentar reserva'}
+                            </button>
+                        )}
+
+                        {seatError && (
+                            <p className={styles.error} role="alert">
+                                {seatError}
+                            </p>
+                        )}
+
+                        <p className={styles.reservationHint}>
+                            Sentá la reserva para tomar el pedido.
+                        </p>
+                    </section>
+                )}
+
                 {tableOrders.length > 0 && (
                     <section className={styles.section}>
                         <h3 className={styles.sectionTitle}>Pedidos activos</h3>
@@ -423,7 +521,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                                                 <button
                                                     type="button"
                                                     onClick={() => changeQuantity(key, -1)}
-                                                    disabled={quantity === 0}
+                                                    disabled={orderingDisabled || quantity === 0}
                                                     aria-label={`Quitar ${productName(product)}`}
                                                 >
                                                     −
@@ -432,6 +530,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                                                 <button
                                                     type="button"
                                                     onClick={() => changeQuantity(key, 1)}
+                                                    disabled={orderingDisabled}
                                                     aria-label={`Agregar ${productName(product)}`}
                                                 >
                                                     +
@@ -465,6 +564,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                                 className={styles.itemNotes}
                                 placeholder="Observaciones (ej. sin cebolla)"
                                 value={notes}
+                                disabled={orderingDisabled}
                                 onChange={(event) =>
                                     changeItemNotes(String(product.id), event.target.value)
                                 }
@@ -480,12 +580,19 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                         rows={2}
                         placeholder="Ej. servir los platos juntos"
                         value={generalNotes}
+                        disabled={orderingDisabled}
                         onChange={(event) => setGeneralNotes(event.target.value)}
                     />
                 </section>
             </div>
 
             <footer className={styles.footer}>
+                {orderingDisabled && (
+                    <p className={styles.disabledHint}>
+                        Sentá la reserva para tomar el pedido.
+                    </p>
+                )}
+
                 <div className={styles.summary}>
                     <span>
                         {totalQuantity} ítem{totalQuantity === 1 ? '' : 's'}
@@ -497,7 +604,7 @@ export default function OrderPanel({ table, orders = [], createOrder, updateStat
                     type="button"
                     className={styles.submit}
                     onClick={handleSubmit}
-                    disabled={sending || totalQuantity === 0}
+                    disabled={sending || orderingDisabled || totalQuantity === 0}
                     aria-busy={sending}
                 >
                     {sending && <span className={styles.spinner} aria-hidden="true" />}

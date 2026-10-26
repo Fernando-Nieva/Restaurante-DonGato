@@ -2,6 +2,8 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Outlines } from '@react-three/drei';
 import {
+    ENTRANCE_POINT,
+    isTerraceZone,
     KITCHEN_PICKUP,
     KITCHEN_PICKUP_SLOTS,
     WAITER_MAX_WAIT_SECONDS,
@@ -58,10 +60,12 @@ const noRaycast = () => null;
 
 const startReturn = (machine, slot, entry) => {
     const m = machine;
+    const fromTerrace = m.trip?.terrace === true || m.pos.z > ENTRANCE_POINT.z;
 
     m.state = 'volver';
     m.trip = null;
     m.target = { x: slot.x, z: slot.z };
+    m.waypoints = fromTerrace ? [{ ...ENTRANCE_POINT }] : [];
     m.bestRemaining = Infinity;
     m.stuckTime = 0;
     m.waitTime = 0;
@@ -99,6 +103,7 @@ export default function Waiter({
         state: 'idle',
         pos: { x: slot.x, z: slot.z },
         target: null,
+        waypoints: [],
         heading: Math.atan2(-slot.x, -slot.z),
         deliverTimer: 0,
         waitTime: 0,
@@ -232,15 +237,19 @@ export default function Waiter({
 
                 const tableX = Number(table.pos_x) || 0;
                 const tableZ = Number(table.pos_z) || 0;
-                const dirX = KITCHEN_PICKUP.x - tableX;
-                const dirZ = KITCHEN_PICKUP.z - tableZ;
+                const terrace = isTerraceZone(table.zone);
+                const approach = terrace ? ENTRANCE_POINT : KITCHEN_PICKUP;
+                const dirX = approach.x - tableX;
+                const dirZ = approach.z - tableZ;
                 const length = Math.hypot(dirX, dirZ) || 1;
 
                 m.trip = {
                     tableId: tableKey,
                     orderIds,
                     predelivered: false,
+                    terrace,
                 };
+                m.waypoints = terrace ? [{ ...ENTRANCE_POINT }] : [];
                 m.target = {
                     x: tableX + (dirX / length) * WAIT_TABLE_DISTANCE,
                     z: tableZ + (dirZ / length) * WAIT_TABLE_DISTANCE,
@@ -264,114 +273,130 @@ export default function Waiter({
 
         let bounce = 0;
 
-        if ((m.state === 'ir_a_mesa' || m.state === 'volver') && m.target) {
-            const dx = m.target.x - m.pos.x;
-            const dz = m.target.z - m.pos.z;
-            const remaining = Math.hypot(dx, dz);
+        if (
+            (m.state === 'ir_a_mesa' || m.state === 'volver') &&
+            (m.target || m.waypoints.length > 0)
+        ) {
+            const waypoint = m.waypoints.length > 0 ? m.waypoints[0] : m.target;
 
-            if (remaining <= ARRIVE_DISTANCE) {
-                if (m.state === 'ir_a_mesa') {
-                    if (m.trip?.predelivered) {
-                        m.state = 'entregar';
-                        m.deliverTimer = DELIVER_TIME;
+            if (waypoint) {
+                const dx = waypoint.x - m.pos.x;
+                const dz = waypoint.z - m.pos.z;
+                const remaining = Math.hypot(dx, dz);
+
+                if (remaining <= ARRIVE_DISTANCE) {
+                    if (m.waypoints.length > 0) {
+                        m.waypoints.shift();
+                        m.bestRemaining = Infinity;
+                        m.stuckTime = 0;
+                    } else if (m.state === 'ir_a_mesa') {
+                        if (m.trip?.predelivered) {
+                            m.state = 'entregar';
+                            m.deliverTimer = DELIVER_TIME;
+                        } else {
+                            m.state = 'esperando_en_mesa';
+                            m.waitTime = 0;
+                        }
                     } else {
-                        m.state = 'esperando_en_mesa';
-                        m.waitTime = 0;
+                        m.state = 'idle';
+                        m.trip = null;
                     }
+                } else if (m.state === 'ir_a_mesa' && entry.returnRequested) {
+                    startReturn(m, slot, entry);
                 } else {
-                    m.state = 'idle';
-                    m.trip = null;
-                }
-            } else if (m.state === 'ir_a_mesa' && entry.returnRequested) {
-                startReturn(m, slot, entry);
-            } else {
-                m.pauseCooldown = Math.max(0, m.pauseCooldown - delta);
+                    m.pauseCooldown = Math.max(0, m.pauseCooldown - delta);
 
-                const steerScale = 0.6 + 0.9 * Math.min(1, remaining / 2);
-                let direction = steerAround(
-                    m.pos,
-                    { x: dx / remaining, z: dz / remaining },
-                    tableCenters,
-                    Math.min(TABLE_STEER_RADIUS, steerScale),
-                );
-
-                const catObstacles = cats?.current ?? [];
-
-                if (catObstacles.length > 0) {
-                    direction = steerAround(m.pos, direction, catObstacles, CAT_STEER_RADIUS);
-                }
-
-                const otherWaiters = (waiters?.current ?? []).filter(
-                    (other) => other.id !== id,
-                );
-
-                if (otherWaiters.length > 0) {
-                    direction = steerAround(
+                    const steerScale = 0.6 + 0.9 * Math.min(1, remaining / 2);
+                    let direction = steerAround(
                         m.pos,
-                        direction,
-                        otherWaiters.map((other) => other.position),
-                        WAITER_STEER_RADIUS,
+                        { x: dx / remaining, z: dz / remaining },
+                        tableCenters,
+                        Math.min(TABLE_STEER_RADIUS, steerScale),
                     );
 
-                    if (m.state === 'ir_a_mesa' && m.pauseTimer <= 0 && m.pauseCooldown <= 0) {
-                        const ahead = otherWaiters.some((other) => {
-                            const distance = Math.hypot(
-                                other.position.x - m.pos.x,
-                                other.position.z - m.pos.z,
-                            );
+                    const catObstacles = cats?.current ?? [];
 
-                            return (
-                                distance < WAITER_BLOCK_DISTANCE &&
-                                (other.state === 'ir_a_mesa' || other.state === 'volver') &&
-                                m.traveled < other.traveled
-                            );
-                        });
+                    if (catObstacles.length > 0) {
+                        direction = steerAround(m.pos, direction, catObstacles, CAT_STEER_RADIUS);
+                    }
 
-                        if (ahead) {
-                            m.pauseTimer = PAUSE_TIME;
-                            m.pauseCooldown = PAUSE_COOLDOWN;
+                    const otherWaiters = (waiters?.current ?? []).filter(
+                        (other) => other.id !== id,
+                    );
+
+                    if (otherWaiters.length > 0) {
+                        direction = steerAround(
+                            m.pos,
+                            direction,
+                            otherWaiters.map((other) => other.position),
+                            WAITER_STEER_RADIUS,
+                        );
+
+                        if (
+                            m.state === 'ir_a_mesa' &&
+                            m.pauseTimer <= 0 &&
+                            m.pauseCooldown <= 0
+                        ) {
+                            const ahead = otherWaiters.some((other) => {
+                                const distance = Math.hypot(
+                                    other.position.x - m.pos.x,
+                                    other.position.z - m.pos.z,
+                                );
+
+                                return (
+                                    distance < WAITER_BLOCK_DISTANCE &&
+                                    (other.state === 'ir_a_mesa' ||
+                                        other.state === 'volver') &&
+                                    m.traveled < other.traveled
+                                );
+                            });
+
+                            if (ahead) {
+                                m.pauseTimer = PAUSE_TIME;
+                                m.pauseCooldown = PAUSE_COOLDOWN;
+                            }
                         }
                     }
-                }
 
-                const customerObstacles = customers?.current ?? [];
+                    const customerObstacles = customers?.current ?? [];
 
-                if (customerObstacles.length > 0) {
-                    direction = steerAround(
-                        m.pos,
-                        direction,
-                        customerObstacles,
-                        CUSTOMER_STEER_RADIUS * Math.min(1, remaining / 1.5),
-                    );
-                }
+                    if (customerObstacles.length > 0) {
+                        direction = steerAround(
+                            m.pos,
+                            direction,
+                            customerObstacles,
+                            CUSTOMER_STEER_RADIUS * Math.min(1, remaining / 1.5),
+                        );
+                    }
 
-                if (m.pauseTimer > 0) {
-                    m.pauseTimer = Math.max(0, m.pauseTimer - delta);
-                    m.stuckTime = 0;
-                } else {
-                    const step = Math.min(WALK_SPEED * delta, remaining);
-
-                    m.pos.x += direction.x * step;
-                    m.pos.z += direction.z * step;
-                    m.traveled += step;
-
-                    const targetHeading = Math.atan2(direction.x, direction.z);
-                    const diff =
-                        ((targetHeading - m.heading + Math.PI) % TAU + TAU) % TAU - Math.PI;
-
-                    m.heading += diff * Math.min(delta * 7, 1);
-                    m.legPhase += delta * LEG_RATE;
-                    bounce = Math.abs(Math.sin(m.legPhase)) * 0.025;
-
-                    if (remaining < m.bestRemaining - STUCK_PROGRESS) {
-                        m.bestRemaining = remaining;
+                    if (m.pauseTimer > 0) {
+                        m.pauseTimer = Math.max(0, m.pauseTimer - delta);
                         m.stuckTime = 0;
                     } else {
-                        m.stuckTime += delta;
+                        const step = Math.min(WALK_SPEED * delta, remaining);
 
-                        if (m.stuckTime > STUCK_TIMEOUT) {
-                            m.pos.x = m.target.x;
-                            m.pos.z = m.target.z;
+                        m.pos.x += direction.x * step;
+                        m.pos.z += direction.z * step;
+                        m.traveled += step;
+
+                        const targetHeading = Math.atan2(direction.x, direction.z);
+                        const diff =
+                            ((targetHeading - m.heading + Math.PI) % TAU + TAU) % TAU - Math.PI;
+
+                        m.heading += diff * Math.min(delta * 7, 1);
+                        m.legPhase += delta * LEG_RATE;
+                        bounce = Math.abs(Math.sin(m.legPhase)) * 0.025;
+
+                        if (remaining < m.bestRemaining - STUCK_PROGRESS) {
+                            m.bestRemaining = remaining;
+                            m.stuckTime = 0;
+                        } else {
+                            m.stuckTime += delta;
+
+                            if (m.stuckTime > STUCK_TIMEOUT) {
+                                m.pos.x = waypoint.x;
+                                m.pos.z = waypoint.z;
+                            }
                         }
                     }
                 }

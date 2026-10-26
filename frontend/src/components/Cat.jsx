@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Outlines } from '@react-three/drei';
-import { ROOM_LAYOUT } from './roomLayout';
+import { isTerraceZone, ROOM_LAYOUT } from './roomLayout';
 import { pickWalkTarget, steerAround } from '../utils/navigation';
 
 const WALK_BOUNDS = {
@@ -114,10 +114,12 @@ export default function Cat({
 
     const tableCenters = useMemo(
         () =>
-            tables.map((table) => ({
-                x: Number(table.pos_x) || 0,
-                z: Number(table.pos_z) || 0,
-            })),
+            tables
+                .filter((table) => !isTerraceZone(table.zone))
+                .map((table) => ({
+                    x: Number(table.pos_x) || 0,
+                    z: Number(table.pos_z) || 0,
+                })),
         [tables],
     );
 

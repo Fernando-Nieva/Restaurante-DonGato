@@ -8,6 +8,7 @@ import { adminApi } from '../../services/adminApi';
 import { getApiErrorMessage } from '../../services/api';
 import { daysAgo, formatDateTime, toDateInputValue } from '../../utils/date';
 import { formatPrice } from '../../utils/formatPrice';
+import { tableDisplayName } from '../../utils/table';
 
 const INITIAL_FILTERS = {
     from: daysAgo(6),
@@ -56,7 +57,9 @@ const statusColor = (status) =>
     ORDER_STATUS_COLORS[normalizeStatus(status)] ?? 'var(--color-muted)';
 
 const tableLabel = (order) =>
-    order.table?.number != null ? `Mesa ${order.table.number}` : `Mesa ${order.table_id}`;
+    order.table?.number != null
+        ? tableDisplayName(order.table)
+        : `Mesa ${order.table_id}`;
 
 const userLabel = (order) => order.user?.name ?? `Usuario ${order.user_id}`;
 
@@ -496,7 +499,7 @@ export default function AdminOrdersPage() {
                             <option value="">Todas</option>
                             {tables.map((table) => (
                                 <option key={table.id} value={table.id}>
-                                    Mesa {table.number}
+                                    {tableDisplayName(table)}
                                 </option>
                             ))}
                         </select>

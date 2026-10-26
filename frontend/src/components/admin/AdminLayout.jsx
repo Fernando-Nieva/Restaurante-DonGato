@@ -5,6 +5,7 @@ const SECTIONS = [
     { to: '/admin', label: 'Panel', end: true },
     { to: '/admin/carta', label: 'Carta' },
     { to: '/admin/mesas', label: 'Mesas' },
+    { to: '/admin/reservas', label: 'Reservas' },
     { to: '/admin/usuarios', label: 'Usuarios' },
     { to: '/admin/pedidos', label: 'Pedidos' },
 ];

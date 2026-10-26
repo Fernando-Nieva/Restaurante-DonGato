@@ -12,6 +12,8 @@ export const QUALITY_CONFIG = {
         maxWaiters: 3,
         steam: true,
         plantMotion: true,
+        tableEffects: true,
+        terraceDecor: true,
     },
     medium: {
         label: 'Media',
@@ -23,6 +25,8 @@ export const QUALITY_CONFIG = {
         maxWaiters: 3,
         steam: true,
         plantMotion: true,
+        tableEffects: true,
+        terraceDecor: true,
     },
     low: {
         label: 'Baja',
@@ -34,6 +38,8 @@ export const QUALITY_CONFIG = {
         maxWaiters: 2,
         steam: false,
         plantMotion: false,
+        tableEffects: false,
+        terraceDecor: false,
     },
 };
 

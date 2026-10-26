@@ -13,7 +13,7 @@ class TableService
     /**
      * Create a table and notify the open restaurant screens.
      *
-     * @param  array{number: int, seats: int, pos_x: int|float|string, pos_z: int|float|string}  $data
+     * @param  array{number: int, seats: int, pos_x: int|float|string, pos_z: int|float|string, zone: string}  $data
      */
     public function create(array $data): Table
     {
@@ -28,6 +28,7 @@ class TableService
             'pos_x' => $posX,
             'pos_y' => 0,
             'pos_z' => $posZ,
+            'zone' => $data['zone'],
             'is_active' => true,
         ]);
 
@@ -39,7 +40,7 @@ class TableService
     /**
      * Update a table and notify the open restaurant screens.
      *
-     * @param  array{number: int, seats: int, pos_x: int|float|string, pos_z: int|float|string}  $data
+     * @param  array{number: int, seats: int, pos_x: int|float|string, pos_z: int|float|string, zone: string}  $data
      */
     public function update(Table $table, array $data): Table
     {
@@ -54,6 +55,7 @@ class TableService
             'pos_x' => $posX,
             'pos_y' => 0,
             'pos_z' => $posZ,
+            'zone' => $data['zone'],
         ]);
 
         $this->broadcastTableChange($table, 'updated');
@@ -93,6 +95,9 @@ class TableService
         return null;
     }
 
+    /**
+     * Ensure the position is clear of every active table, regardless of zone.
+     */
     private function ensurePositionIsFree(float $posX, float $posZ, ?int $ignoreTableId = null): void
     {
         $minDistance = (float) config('restaurant.tables.min_distance', 3.0);

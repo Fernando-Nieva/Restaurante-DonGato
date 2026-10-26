@@ -8,6 +8,7 @@ import RestaurantPage from './pages/RestaurantPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminMenuPage from './pages/admin/AdminMenuPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminReservationsPage from './pages/admin/AdminReservationsPage';
 import AdminTablesPage from './pages/admin/AdminTablesPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 
@@ -61,6 +62,10 @@ export default function App() {
                                 <Route index element={<AdminDashboardPage />} />
                                 <Route path="carta" element={<AdminMenuPage />} />
                                 <Route path="mesas" element={<AdminTablesPage />} />
+                                <Route
+                                    path="reservas"
+                                    element={<AdminReservationsPage />}
+                                />
                                 <Route path="usuarios" element={<AdminUsersPage />} />
                                 <Route path="pedidos" element={<AdminOrdersPage />} />
                                 <Route

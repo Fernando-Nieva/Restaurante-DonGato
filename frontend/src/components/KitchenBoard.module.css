@@ -49,12 +49,11 @@
     transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.tabDot {
+.tabIcon {
     flex: none;
-    width: 8px;
-    height: 8px;
-    background-color: var(--status-color, var(--color-line));
-    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    color: var(--status-color, var(--color-line));
 }
 
 .tabLabel {

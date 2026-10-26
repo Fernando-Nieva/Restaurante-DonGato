@@ -101,7 +101,7 @@
 }
 
 @media (max-width: 599px) {
-    body:has([data-order-panel]) .viewport {
+    body:has([data-order-panel], [data-table-panel]) .viewport {
         top: calc(var(--header-height) + var(--safe-top) + var(--space-3));
         bottom: auto;
     }

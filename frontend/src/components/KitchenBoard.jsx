@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useOrders from '../hooks/useOrders';
 import { useToast } from '../context/ToastContext';
 import { KITCHEN_COLUMNS, NEXT_STATUS, ORDER_STATUS } from '../constants/orderStatus';
+import { tableDisplayName } from '../utils/table';
 import { PageError, PageLoader } from './PageState';
 import StatusIcon from './StatusIcon';
 import styles from './KitchenBoard.module.css';
@@ -16,11 +17,18 @@ const normalizeStatus = (status) => String(status ?? '').toLowerCase();
 const tableLabel = (order) => {
     const table = order.table;
 
-    if (table && typeof table === 'object') {
-        return table.name ?? table.number ?? table.id ?? '—';
+    if (
+        table &&
+        typeof table === 'object' &&
+        (table.number ?? table.name ?? table.id) != null
+    ) {
+        return tableDisplayName(table);
     }
 
-    return table ?? order.table_id ?? '—';
+    if (table != null) return `Mesa ${table}`;
+    if (order.table_id != null) return `Mesa ${order.table_id}`;
+
+    return '—';
 };
 
 const orderItems = (order) => order.items ?? order.order_items ?? [];
@@ -214,7 +222,11 @@ export default function KitchenBoard() {
                             style={{ '--status-color': column.color }}
                             onClick={() => setActiveStatus(column.status)}
                         >
-                            <span className={styles.tabDot} aria-hidden="true" />
+                            <StatusIcon
+                                status={column.status}
+                                className={styles.tabIcon}
+                                size={14}
+                            />
                             <span className={styles.tabLabel}>{column.title}</span>
                             <span className={styles.tabCount}>{count}</span>
                         </button>
@@ -276,7 +288,7 @@ export default function KitchenBoard() {
                                         >
                                             <header className={styles.cardHeader}>
                                                 <span className={styles.table}>
-                                                    Mesa {tableLabel(order)}
+                                                    {tableLabel(order)}
                                                 </span>
                                                 <time
                                                     className={`${styles.time} ${

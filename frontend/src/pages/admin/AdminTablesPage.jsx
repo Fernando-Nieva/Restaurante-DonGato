@@ -6,19 +6,30 @@ import ConfirmDialog from '../../components/admin/ConfirmDialog';
 import TableFloorPlan, {
     findTableCollisions,
 } from '../../components/admin/TableFloorPlan';
+import TableStatusIcon from '../../components/TableStatusIcon';
 import styles from '../../components/admin/admin.module.css';
 import { TABLE_STATUS_COLORS, TABLE_STATUS_LABELS } from '../../constants/orderStatus';
+import {
+    getZoneBounds,
+    normalizeZone,
+    TABLE_ZONE_LABELS,
+    TABLE_ZONE_OPTIONS,
+} from '../../components/roomLayout';
 import { useToast } from '../../context/ToastContext';
 import { getEcho, subscribeToEcho } from '../../lib/echo';
 import { adminApi } from '../../services/adminApi';
 import { getApiErrorMessage, getFieldError } from '../../services/api';
+import { tableDisplayName } from '../../utils/table';
 
 const EMPTY_FORM = {
     number: '',
     seats: '4',
+    zone: 'salon',
     pos_x: '0',
     pos_z: '0',
 };
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const statusTone = (status) =>
     TABLE_STATUS_COLORS[String(status ?? '').toLowerCase()] ?? 'var(--color-muted)';
@@ -27,9 +38,17 @@ const statusLabel = (status) =>
     TABLE_STATUS_LABELS[String(status ?? '').toLowerCase()] ??
     String(status ?? 'Sin estado');
 
+const zoneLabel = (zone) => TABLE_ZONE_LABELS[normalizeZone(zone)];
+
+const zoneTone = (zone) =>
+    normalizeZone(zone) === 'terraza'
+        ? 'var(--color-success-strong)'
+        : 'var(--color-brown)';
+
 const formFromTable = (table) => ({
     number: table?.number != null ? String(table.number) : '',
     seats: table?.seats != null ? String(table.seats) : '4',
+    zone: normalizeZone(table?.zone),
     pos_x: table?.pos_x != null ? String(Number(table.pos_x)) : '0',
     pos_z: table?.pos_z != null ? String(Number(table.pos_z)) : '0',
 });
@@ -64,6 +83,7 @@ export default function AdminTablesPage() {
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState('');
 
+    const zoneBounds = useMemo(() => getZoneBounds(form.zone), [form.zone]);
     const draftPosition = useMemo(() => {
         const x = Number(form.pos_x);
         const z = Number(form.pos_z);
@@ -173,6 +193,36 @@ export default function AdminTablesPage() {
         setFieldErrors((current) => ({ ...current, [field]: undefined }));
     };
 
+    const handleZoneChange = (zone) => {
+        const nextZone = normalizeZone(zone);
+        const bounds = getZoneBounds(nextZone);
+
+        setForm((current) => {
+            const posX = Number(current.pos_x);
+            const posZ = Number(current.pos_z);
+
+            return {
+                ...current,
+                zone: nextZone,
+                pos_x:
+                    current.pos_x !== '' && Number.isFinite(posX)
+                        ? clamp(posX, bounds.minX, bounds.maxX).toFixed(2)
+                        : current.pos_x,
+                pos_z:
+                    current.pos_z !== '' && Number.isFinite(posZ)
+                        ? clamp(posZ, bounds.minZ, bounds.maxZ).toFixed(2)
+                        : current.pos_z,
+            };
+        });
+        setFieldErrors((current) => ({
+            ...current,
+            zone: undefined,
+            pos_x: undefined,
+            pos_z: undefined,
+        }));
+        setFormError('');
+    };
+
     const handlePlanPositionChange = ({ x, z }) => {
         setForm((current) => ({
             ...current,
@@ -191,6 +241,8 @@ export default function AdminTablesPage() {
         const errors = {};
         const number = Number(form.number);
         const seats = Number(form.seats);
+        const zone = normalizeZone(form.zone);
+        const bounds = getZoneBounds(zone);
         const posX = Number(form.pos_x);
         const posZ = Number(form.pos_z);
 
@@ -202,12 +254,16 @@ export default function AdminTablesPage() {
             errors.seats = 'La cantidad de asientos debe estar entre 1 y 12.';
         }
 
-        if (!Number.isFinite(posX) || posX < -8 || posX > 8) {
-            errors.pos_x = 'La posición X debe estar entre -8 y 8.';
+        if (!TABLE_ZONE_OPTIONS.some((option) => option.value === zone)) {
+            errors.zone = 'Elegí una zona válida.';
         }
 
-        if (!Number.isFinite(posZ) || posZ < -6 || posZ > 6) {
-            errors.pos_z = 'La posición Z debe estar entre -6 y 6.';
+        if (!Number.isFinite(posX) || posX < bounds.minX || posX > bounds.maxX) {
+            errors.pos_x = `La posición X debe estar entre ${bounds.minX} y ${bounds.maxX}.`;
+        }
+
+        if (!Number.isFinite(posZ) || posZ < bounds.minZ || posZ > bounds.maxZ) {
+            errors.pos_z = `La posición Z debe estar entre ${bounds.minZ} y ${bounds.maxZ}.`;
         }
 
         if (!errors.pos_x && !errors.pos_z) {
@@ -219,7 +275,7 @@ export default function AdminTablesPage() {
 
             if (collisions.length > 0) {
                 errors.pos_x = `Queda a menos de 3 m de ${collisions
-                    .map((collision) => `Mesa ${collision.table.number}`)
+                    .map((collision) => tableDisplayName(collision.table))
                     .join(', ')}.`;
             }
         }
@@ -238,6 +294,7 @@ export default function AdminTablesPage() {
         const payload = {
             number: Number(form.number),
             seats: Number(form.seats),
+            zone: normalizeZone(form.zone),
             pos_x: Number(form.pos_x),
             pos_z: Number(form.pos_z),
         };
@@ -253,7 +310,7 @@ export default function AdminTablesPage() {
                 addToast({
                     type: 'success',
                     title: 'Mesa actualizada',
-                    message: `La mesa ${payload.number} se guardó correctamente.`,
+                    message: `${tableDisplayName(payload)} se guardó correctamente.`,
                 });
             } else {
                 const created = await adminApi.createTable(payload);
@@ -267,7 +324,9 @@ export default function AdminTablesPage() {
                 addToast({
                     type: 'success',
                     title: 'Mesa creada',
-                    message: `La mesa ${payload.number} ya está disponible en el salón.`,
+                    message: `${tableDisplayName(payload)} ya está disponible en la zona ${zoneLabel(
+                        payload.zone,
+                    ).toLowerCase()}.`,
                 });
             }
 
@@ -281,6 +340,7 @@ export default function AdminTablesPage() {
             setFieldErrors({
                 number: getFieldError(submitError, 'number') ?? undefined,
                 seats: getFieldError(submitError, 'seats') ?? undefined,
+                zone: getFieldError(submitError, 'zone') ?? undefined,
                 pos_x: getFieldError(submitError, 'pos_x') ?? undefined,
                 pos_z: getFieldError(submitError, 'pos_z') ?? undefined,
             });
@@ -316,8 +376,10 @@ export default function AdminTablesPage() {
                 type: 'success',
                 title: result ? 'Mesa desactivada' : 'Mesa eliminada',
                 message: result
-                    ? `La mesa ${tableToDelete.number} conserva su historial y quedó fuera del salón.`
-                    : `La mesa ${tableToDelete.number} se eliminó del salón.`,
+                    ? `${tableDisplayName(
+                          tableToDelete,
+                      )} conserva su historial y quedó fuera del restaurante.`
+                    : `${tableDisplayName(tableToDelete)} se eliminó del restaurante.`,
             });
             setTableToDelete(null);
         } catch (deleteFailure) {
@@ -380,7 +442,7 @@ export default function AdminTablesPage() {
             {!loading && !error && tables.length === 0 && (
                 <AdminEmptyState
                     title="No hay mesas activas"
-                    message="Creá la primera mesa para que aparezca en el salón."
+                    message="Creá la primera mesa para que aparezca en el plano."
                     action={
                         <button
                             type="button"
@@ -401,6 +463,7 @@ export default function AdminTablesPage() {
                                 <thead>
                                     <tr>
                                         <th scope="col">Mesa</th>
+                                        <th scope="col">Zona</th>
                                         <th scope="col">Asientos</th>
                                         <th scope="col">Posición</th>
                                         <th scope="col">Estado</th>
@@ -413,6 +476,20 @@ export default function AdminTablesPage() {
                                             <td>
                                                 <span className={styles.cellStrong}>
                                                     Mesa {table.number}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    className={styles.badge}
+                                                    style={{
+                                                        '--badge-color': zoneTone(table.zone),
+                                                    }}
+                                                >
+                                                    <span
+                                                        className={styles.badgeDot}
+                                                        aria-hidden="true"
+                                                    />
+                                                    {zoneLabel(table.zone)}
                                                 </span>
                                             </td>
                                             <td>{table.seats}</td>
@@ -429,9 +506,9 @@ export default function AdminTablesPage() {
                                                         '--badge-color': statusTone(table.status),
                                                     }}
                                                 >
-                                                    <span
-                                                        className={styles.badgeDot}
-                                                        aria-hidden="true"
+                                                    <TableStatusIcon
+                                                        status={table.status}
+                                                        className={styles.badgeIcon}
                                                     />
                                                     {statusLabel(table.status)}
                                                 </span>
@@ -465,15 +542,15 @@ export default function AdminTablesPage() {
                                 <li key={table.id} className={styles.itemCard}>
                                     <div className={styles.itemCardHeader}>
                                         <h2 className={styles.itemCardTitle}>
-                                            Mesa {table.number}
+                                            {tableDisplayName(table)}
                                         </h2>
                                         <span
                                             className={styles.badge}
                                             style={{ '--badge-color': statusTone(table.status) }}
                                         >
-                                            <span
-                                                className={styles.badgeDot}
-                                                aria-hidden="true"
+                                            <TableStatusIcon
+                                                status={table.status}
+                                                className={styles.badgeIcon}
                                             />
                                             {statusLabel(table.status)}
                                         </span>
@@ -508,7 +585,9 @@ export default function AdminTablesPage() {
 
                     <aside className={styles.planPanel}>
                         <div className={styles.planPanelHeader}>
-                            <h2 className={styles.planPanelTitle}>Plano del salón</h2>
+                            <h2 className={styles.planPanelTitle}>
+                                Plano del salón y la terraza
+                            </h2>
                             <p className={styles.planPanelHint}>
                                 Hacé clic en una mesa para editarla. Cada cuadro representa 1
                                 metro y el círculo punteado marca los 3 metros mínimos.
@@ -521,7 +600,7 @@ export default function AdminTablesPage() {
 
             <AdminModal
                 open={modalOpen}
-                title={editingTable ? `Editar mesa ${editingTable.number}` : 'Nueva mesa'}
+                title={editingTable ? `Editar ${tableDisplayName(editingTable)}` : 'Nueva mesa'}
                 onClose={closeModal}
                 size="wide"
                 footer={
@@ -581,6 +660,32 @@ export default function AdminTablesPage() {
                                 </div>
 
                                 <div className={styles.field}>
+                                    <label htmlFor="table-zone">Zona</label>
+                                    <select
+                                        id="table-zone"
+                                        className={styles.select}
+                                        value={normalizeZone(form.zone)}
+                                        aria-invalid={Boolean(fieldErrors.zone)}
+                                        onChange={(event) =>
+                                            handleZoneChange(event.target.value)
+                                        }
+                                    >
+                                        {TABLE_ZONE_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {fieldErrors.zone ? (
+                                        <p className={styles.fieldError}>{fieldErrors.zone}</p>
+                                    ) : (
+                                        <p className={styles.help}>
+                                            La posición se limita a la zona elegida.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className={styles.field}>
                                     <label htmlFor="table-seats">Asientos</label>
                                     <input
                                         id="table-seats"
@@ -610,8 +715,8 @@ export default function AdminTablesPage() {
                                         type="number"
                                         className={styles.input}
                                         value={form.pos_x}
-                                        min="-8"
-                                        max="8"
+                                        min={zoneBounds.minX}
+                                        max={zoneBounds.maxX}
                                         step="0.01"
                                         inputMode="decimal"
                                         aria-invalid={Boolean(fieldErrors.pos_x)}
@@ -624,7 +729,9 @@ export default function AdminTablesPage() {
                                             {fieldErrors.pos_x}
                                         </p>
                                     ) : (
-                                        <p className={styles.help}>Entre -8 y 8 metros.</p>
+                                        <p className={styles.help}>
+                                            Entre {zoneBounds.minX} y {zoneBounds.maxX} metros.
+                                        </p>
                                     )}
                                 </div>
 
@@ -635,8 +742,8 @@ export default function AdminTablesPage() {
                                         type="number"
                                         className={styles.input}
                                         value={form.pos_z}
-                                        min="-6"
-                                        max="6"
+                                        min={zoneBounds.minZ}
+                                        max={zoneBounds.maxZ}
                                         step="0.01"
                                         inputMode="decimal"
                                         aria-invalid={Boolean(fieldErrors.pos_z)}
@@ -649,7 +756,9 @@ export default function AdminTablesPage() {
                                             {fieldErrors.pos_z}
                                         </p>
                                     ) : (
-                                        <p className={styles.help}>Entre -6 y 6 metros.</p>
+                                        <p className={styles.help}>
+                                            Entre {zoneBounds.minZ} y {zoneBounds.maxZ} metros.
+                                        </p>
                                     )}
                                 </div>
                             </div>
@@ -665,7 +774,8 @@ export default function AdminTablesPage() {
                                 <div className={styles.planPanelHeader}>
                                     <h3 className={styles.planPanelTitle}>Ubicación</h3>
                                     <p className={styles.planPanelHint}>
-                                        Hacé clic en el plano para mover la mesa en edición.
+                                        Hacé clic en la zona {zoneLabel(form.zone).toLowerCase()} para
+                                        mover la mesa en edición.
                                     </p>
                                 </div>
                                 <TableFloorPlan
@@ -673,6 +783,7 @@ export default function AdminTablesPage() {
                                     selectedTableId={editingTable?.id ?? null}
                                     draftPosition={draftPosition}
                                     draftLabel={form.number || 'Nueva'}
+                                    draftZone={form.zone}
                                     onPositionChange={handlePlanPositionChange}
                                 />
                             </div>
@@ -686,7 +797,9 @@ export default function AdminTablesPage() {
                 title="Quitar mesa"
                 message={
                     tableToDelete
-                        ? `¿Querés quitar la mesa ${tableToDelete.number}? Si tiene historial de pedidos se desactivará en lugar de borrarse.`
+                        ? `¿Querés quitar ${tableDisplayName(
+                              tableToDelete,
+                          )}? Si tiene historial de pedidos se desactivará en lugar de borrarse.`
                         : ''
                 }
                 error={deleteError}

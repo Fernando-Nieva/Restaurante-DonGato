@@ -1,34 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import AdminTablePanel from '../components/admin/AdminTablePanel';
 import OrderPanel from '../components/OrderPanel';
 import RestaurantScene from '../components/RestaurantScene';
 import { PageError, PageLoader } from '../components/PageState';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import useOrders from '../hooks/useOrders';
 import { ORDER_STATUS, ORDER_STATUS_LABELS } from '../constants/orderStatus';
+import { tableDisplayName } from '../utils/table';
 import styles from './RestaurantPage.module.css';
 
-const STATUS_PRECEDENCE = [ORDER_STATUS.Pendiente, ORDER_STATUS.Preparando, ORDER_STATUS.Listo];
+const orderTableLabel = (order) => {
+    if (order.table && (order.table.number ?? order.table.name ?? order.table.id) != null) {
+        return tableDisplayName(order.table);
+    }
 
-const orderTableId = (order) => order.table_id ?? order.table?.id ?? null;
-
-const orderTableLabel = (order) =>
-    order.table?.number ?? order.table?.name ?? order.table?.id ?? order.table_id ?? '—';
-
-const deriveTableStatus = (table, orders) => {
-    const tableId = String(table.id);
-
-    const statuses = new Set(
-        orders
-            .filter((order) => {
-                const id = orderTableId(order);
-
-                return id != null && String(id) === tableId;
-            })
-            .map((order) => String(order.status ?? '').toLowerCase())
-            .filter(Boolean),
-    );
-
-    return STATUS_PRECEDENCE.find((status) => statuses.has(status)) ?? 'libre';
+    return order.table_id != null ? `Mesa ${order.table_id}` : '—';
 };
 
 export default function RestaurantPage() {
@@ -41,17 +28,16 @@ export default function RestaurantPage() {
         retry,
         createOrder,
         updateStatus,
+        seatReservation,
+        refreshTables,
         consumeReady,
         consumeDone,
     } = useOrders();
     const [selectedId, setSelectedId] = useState(null);
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const isAdmin = String(user?.role ?? '').toLowerCase() === 'admin';
     const statusesRef = useRef(new Map());
-
-    const tablesWithStatus = useMemo(
-        () => tables.map((table) => ({ ...table, status: deriveTableStatus(table, orders) })),
-        [tables, orders],
-    );
 
     useEffect(() => {
         const previousStatuses = statusesRef.current;
@@ -76,13 +62,13 @@ export default function RestaurantPage() {
             addToast({
                 type: 'success',
                 title: `Pedido ${ORDER_STATUS_LABELS[ORDER_STATUS.Listo].toLowerCase()}`,
-                message: `Mesa ${orderTableLabel(order)} · retirar de cocina`,
+                message: `${orderTableLabel(order)} · retirar de cocina`,
             });
         });
     }, [orders, addToast]);
 
     const selectedTable =
-        tablesWithStatus.find((table) => String(table.id) === String(selectedId)) ?? null;
+        tables.find((table) => String(table.id) === String(selectedId)) ?? null;
 
     const handleSelect = (id) =>
         setSelectedId((previous) => (String(previous) === String(id) ? null : id));
@@ -90,7 +76,7 @@ export default function RestaurantPage() {
     if (loading) {
         return (
             <main className={styles.page}>
-                <PageLoader label="Preparando el salón…" />
+                <PageLoader label="Preparando el restaurante…" />
             </main>
         );
     }
@@ -99,7 +85,7 @@ export default function RestaurantPage() {
         return (
             <main className={styles.page}>
                 <PageError
-                    title="No pudimos cargar el salón"
+                    title="No pudimos cargar el restaurante"
                     message="Revisá la conexión con el servidor e intentá de nuevo."
                     onRetry={retry}
                 />
@@ -111,16 +97,18 @@ export default function RestaurantPage() {
         <main className={styles.page}>
             <header className={styles.header}>
                 <div>
-                    <h1 className={styles.title}>Salón</h1>
+                    <h1 className={styles.title}>Restaurante</h1>
                     <p className={styles.subtitle}>
-                        Seleccioná una mesa para tomar o revisar pedidos.
+                        {isAdmin
+                            ? 'Seleccioná una mesa para gestionar reservas y revisar pedidos.'
+                            : 'Seleccioná una mesa para tomar o revisar pedidos.'}
                     </p>
                 </div>
             </header>
 
             <div className={styles.scene}>
                 <RestaurantScene
-                    tables={tablesWithStatus}
+                    tables={tables}
                     orders={orders}
                     ordersLoaded={ordersLoaded}
                     consumeReady={consumeReady}
@@ -130,15 +118,24 @@ export default function RestaurantPage() {
                     panelOpen={Boolean(selectedTable)}
                 />
 
-                {selectedTable && (
-                    <OrderPanel
-                        table={selectedTable}
-                        orders={orders}
-                        createOrder={createOrder}
-                        updateStatus={updateStatus}
-                        onClose={() => setSelectedId(null)}
-                    />
-                )}
+                {selectedTable &&
+                    (isAdmin ? (
+                        <AdminTablePanel
+                            table={selectedTable}
+                            orders={orders}
+                            onClose={() => setSelectedId(null)}
+                            onRefresh={refreshTables}
+                        />
+                    ) : (
+                        <OrderPanel
+                            table={selectedTable}
+                            orders={orders}
+                            createOrder={createOrder}
+                            updateStatus={updateStatus}
+                            seatReservation={seatReservation}
+                            onClose={() => setSelectedId(null)}
+                        />
+                    ))}
             </div>
         </main>
     );

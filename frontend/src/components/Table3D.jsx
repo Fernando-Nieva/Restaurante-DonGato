@@ -1,51 +1,81 @@
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Outlines } from '@react-three/drei';
-import { ExtrudeGeometry, Shape } from 'three';
+import {
+    AdditiveBlending,
+    CircleGeometry,
+    CylinderGeometry,
+    DoubleSide,
+    MeshBasicMaterial,
+    MeshStandardMaterial,
+    RingGeometry,
+} from 'three';
 import GlbModel from './GlbModel';
 import ModelErrorBoundary from './ModelErrorBoundary';
-import { MODEL_CONFIG } from './modelConfig';
-import { TABLE_STATUS_COLORS } from '../constants/orderStatus';
+import TableStatusIcon from './TableStatusIcon';
+import { getTableTopY, MODEL_CONFIG, TABLE_TOP_Y } from './modelConfig';
+import { getZoneBounds, isTerraceZone } from './roomLayout';
+import { TABLE_STATUS, TABLE_STATUS_CONFIG } from '../constants/orderStatus';
 import { getChairLayout } from '../utils/chairs';
+import styles from './Table3D.module.css';
 
 const HOVER_LIFT = 0.08;
 const CLICK_MAX_DRAG_PX = 5;
 const TOUCH_MAX_DRAG_PX = 8;
 const TABLE_RADIUS = 0.75;
+const RING_RADIUS = TABLE_RADIUS + 0.9;
+const RING_THICKNESS = 0.18;
+const RING_THICKNESS_SELECTED = 0.3;
+const OUTER_RING_INNER = RING_RADIUS + 0.03;
+const OUTER_RING_OUTER = RING_RADIUS + 0.07;
+const HALO_RADIUS = RING_RADIUS + 0.3;
 const TOUCH_COLLIDER_RADIUS = TABLE_RADIUS * 1.25;
-const READY_ICON_Y = 1.95;
-const READY_ICON_BOUNCE = 0.14;
+const CLOTH_RADIUS = TABLE_RADIUS * 0.93;
+const CLOTH_HEIGHT = 0.025;
+const BEAM_RADIUS = 0.35;
+const BEAM_HEIGHT = 1.8;
+const CHOCOLATE = '#2b1d12';
+const CLOTH_NEUTRAL = '#fff6e5';
+const LABEL_Y = 1.62;
 
 const noRaycast = () => null;
 
-const READY_GEOMETRY = (() => {
-    const shape = new Shape();
+const RING_GEOMETRY = new RingGeometry(
+    RING_RADIUS - RING_THICKNESS,
+    RING_RADIUS,
+    64,
+);
+const SELECTED_RING_GEOMETRY = new RingGeometry(
+    RING_RADIUS - RING_THICKNESS_SELECTED,
+    RING_RADIUS,
+    64,
+);
+const OUTER_RING_GEOMETRY = new RingGeometry(OUTER_RING_INNER, OUTER_RING_OUTER, 64);
+const HALO_GEOMETRY = new CircleGeometry(HALO_RADIUS, 64);
+const CLOTH_GEOMETRY = new CylinderGeometry(
+    CLOTH_RADIUS,
+    CLOTH_RADIUS,
+    CLOTH_HEIGHT,
+    40,
+);
+const BEAM_GEOMETRY = new CylinderGeometry(BEAM_RADIUS, BEAM_RADIUS, BEAM_HEIGHT, 24, 1, true);
 
-    for (let index = 0; index < 10; index += 1) {
-        const angle = (index / 10) * Math.PI * 2 - Math.PI / 2;
-        const radius = index % 2 === 0 ? 0.22 : 0.095;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
+const formatReservationTime = (value) => {
+    if (!value) return '';
 
-        if (index === 0) {
-            shape.moveTo(x, y);
-        } else {
-            shape.lineTo(x, y);
-        }
-    }
+    const date = new Date(value);
 
-    shape.closePath();
+    if (Number.isNaN(date.getTime())) return '';
 
-    const geometry = new ExtrudeGeometry(shape, { depth: 0.06, bevelEnabled: false });
-    geometry.center();
-
-    return geometry;
-})();
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+};
 
 function ProceduralTable() {
+    const topY = TABLE_TOP_Y.procedural;
+
     return (
         <group>
-            <mesh position={[0, 0.74, 0]} castShadow receiveShadow>
+            <mesh position={[0, topY - 0.04, 0]} castShadow receiveShadow>
                 <cylinderGeometry args={[0.75, 0.75, 0.08, 32]} />
                 <meshStandardMaterial color="#c08a52" roughness={0.7} />
             </mesh>
@@ -131,49 +161,150 @@ export default function Table3D({
     pos_x = 0,
     pos_y = 0,
     pos_z = 0,
+    zone = 'salon',
     seats = 4,
-    status = 'libre',
+    status = TABLE_STATUS.Libre,
+    reservation = null,
+    next_reservation: nextReservation = null,
     selected = false,
     animationsEnabled = true,
+    showEffects = true,
     labelsVisible = true,
     onSelect,
 }) {
     const [hovered, setHovered] = useState(false);
     const contentRef = useRef(null);
-    const ringRef = useRef(null);
-    const readyRef = useRef(null);
     const lift = useRef(0);
     const touchStart = useRef(null);
 
+    const tableX = Number(pos_x) || 0;
+    const tableZ = Number(pos_z) || 0;
     const baseY = Number(pos_y) || 0;
+    const terrace = isTerraceZone(zone);
+    const displayName = terrace ? `Mesa ${number} · Terraza` : `Mesa ${number}`;
+    const tableTopY = getTableTopY(MODEL_CONFIG.table);
     const statusKey = String(status ?? '').toLowerCase();
-    const ringColor = TABLE_STATUS_COLORS[statusKey] ?? TABLE_STATUS_COLORS.libre;
-    const pulsing = statusKey === 'pendiente' || statusKey === 'listo';
-    const chairs = getChairLayout(seats);
+    const statusConfig =
+        TABLE_STATUS_CONFIG[statusKey] ?? TABLE_STATUS_CONFIG[TABLE_STATUS.Libre];
+    const statusColor = statusConfig.color;
+    const isReserved = statusKey === TABLE_STATUS.Reservada;
+    const isFree = statusKey === TABLE_STATUS.Libre;
+    const pulsing = animationsEnabled && statusConfig.pulseSpeed > 0;
+    const beamVisible =
+        showEffects &&
+        (statusKey === TABLE_STATUS.Pendiente ||
+            statusKey === TABLE_STATUS.Listo ||
+            isReserved);
+    const beamBaseOpacity = isReserved ? 0.2 : 0.3;
+    const beamPulse = isReserved ? 0.04 : 0.15;
+    const clothColor = isFree ? CLOTH_NEUTRAL : statusColor;
+    const clothEmissive = isFree ? CLOTH_NEUTRAL : statusColor;
+    const clothGlow = isFree ? 0.12 : statusConfig.glow * 0.45;
+    const activeReservation = isReserved && !terrace ? reservation : null;
+    const upcomingReservation = isFree && !terrace ? nextReservation : null;
+    const chairs = getChairLayout(seats, getZoneBounds(zone), { x: tableX, z: tableZ });
+    const ringGeometry = selected ? SELECTED_RING_GEOMETRY : RING_GEOMETRY;
+    const reservationColor = TABLE_STATUS_CONFIG[TABLE_STATUS.Reservada].color;
+
+    const ringMaterial = useMemo(
+        () =>
+            new MeshStandardMaterial({
+                color: statusColor,
+                emissive: statusColor,
+                emissiveIntensity: statusConfig.glow,
+                roughness: 0.42,
+                metalness: 0.05,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false,
+                toneMapped: false,
+            }),
+        [statusColor, statusConfig.glow],
+    );
+
+    const clothMaterial = useMemo(
+        () =>
+            new MeshStandardMaterial({
+                color: clothColor,
+                emissive: clothEmissive,
+                emissiveIntensity: clothGlow,
+                roughness: 0.55,
+                metalness: 0.02,
+                toneMapped: false,
+            }),
+        [clothColor, clothEmissive, clothGlow],
+    );
+
+    const haloMaterial = useMemo(() => {
+        if (!showEffects) return null;
+
+        return new MeshBasicMaterial({
+            color: statusColor,
+            transparent: true,
+            opacity: 0.25,
+            depthWrite: false,
+            blending: AdditiveBlending,
+            toneMapped: false,
+        });
+    }, [showEffects, statusColor]);
+
+    const beamMaterial = useMemo(() => {
+        if (!beamVisible) return null;
+
+        return new MeshBasicMaterial({
+            color: statusColor,
+            transparent: true,
+            opacity: beamBaseOpacity,
+            depthWrite: false,
+            blending: AdditiveBlending,
+            side: DoubleSide,
+            toneMapped: false,
+        });
+    }, [beamVisible, statusColor, beamBaseOpacity]);
+
+    useEffect(
+        () => () => {
+            ringMaterial.dispose();
+            clothMaterial.dispose();
+            haloMaterial?.dispose();
+            beamMaterial?.dispose();
+        },
+        [ringMaterial, clothMaterial, haloMaterial, beamMaterial],
+    );
 
     useFrame((state, delta) => {
         const content = contentRef.current;
 
         if (content) {
             const target = hovered || selected ? HOVER_LIFT : 0;
+            const bounce =
+                selected && animationsEnabled
+                    ? Math.abs(Math.sin(state.clock.elapsedTime * 3.4)) * 0.035
+                    : 0;
+
             lift.current += (target - lift.current) * Math.min(delta * 12, 1);
-            content.position.y = baseY + lift.current;
+            content.position.y = baseY + lift.current + bounce;
         }
 
-        const ring = ringRef.current;
+        const wave = pulsing ? Math.sin(state.clock.elapsedTime * statusConfig.pulseSpeed) : 0;
+        const emphasized = selected || hovered;
+        const ringBoost = selected ? 0.3 : hovered ? 0.12 : 0;
+        const ringWave = pulsing ? wave * (emphasized ? 0.18 : 0.12) : 0;
 
-        if (ring) {
-            const wave = pulsing ? Math.sin(state.clock.elapsedTime * 3.2) : 0;
-            ring.scale.setScalar(1 + wave * 0.05);
-            ring.material.opacity = 0.85 + wave * 0.15;
-        }
+        ringMaterial.emissiveIntensity = Math.min(
+            statusConfig.glow + ringBoost + ringWave,
+            2.2,
+        );
+        ringMaterial.opacity = Math.min(
+            (emphasized ? 0.98 : 0.88) + (pulsing ? wave * 0.04 : 0),
+            1,
+        );
 
-        const ready = readyRef.current;
+        clothMaterial.emissiveIntensity =
+            clothGlow + (emphasized ? 0.35 : 0) + (pulsing ? wave * 0.08 : 0);
 
-        if (ready) {
-            ready.position.y =
-                READY_ICON_Y + Math.abs(Math.sin(state.clock.elapsedTime * 3.2)) * READY_ICON_BOUNCE;
-            ready.rotation.y = Math.sin(state.clock.elapsedTime * 1.6) * 0.35;
+        if (beamMaterial) {
+            beamMaterial.opacity = beamBaseOpacity + (pulsing ? wave * beamPulse : 0);
         }
     });
 
@@ -225,7 +356,7 @@ export default function Table3D({
 
     return (
         <group
-            position={[Number(pos_x) || 0, 0, Number(pos_z) || 0]}
+            position={[tableX, 0, tableZ]}
             onClick={handleClick}
             onPointerDown={handlePointerDown}
             onPointerOver={handlePointerOver}
@@ -238,17 +369,26 @@ export default function Table3D({
                     <Chair key={chair.key} position={chair.position} rotationY={chair.rotationY} />
                 ))}
 
-                <mesh
-                    position={[0, 0.78, 0]}
-                    raycast={noRaycast}
-                >
+                <mesh geometry={CLOTH_GEOMETRY} material={clothMaterial} position={[0, tableTopY + 0.014, 0]} />
+
+                <mesh position={[0, tableTopY, 0]} raycast={noRaycast}>
                     <cylinderGeometry args={[0.85, 0.85, 0.06, 24]} />
                     <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-                    {hovered && <Outlines thickness={0.06} color="#3d2814" />}
+                    {hovered && <Outlines thickness={0.06} color={CHOCOLATE} />}
                 </mesh>
+
+                {beamVisible && beamMaterial && (
+                    <mesh
+                        geometry={BEAM_GEOMETRY}
+                        material={beamMaterial}
+                        position={[0, tableTopY + BEAM_HEIGHT / 2, 0]}
+                        raycast={noRaycast}
+                        renderOrder={4}
+                    />
+                )}
             </group>
 
-            <mesh position={[0, 0.78, 0]} castShadow={false} receiveShadow={false}>
+            <mesh position={[0, tableTopY, 0]} castShadow={false} receiveShadow={false}>
                 <cylinderGeometry
                     args={[TOUCH_COLLIDER_RADIUS, TOUCH_COLLIDER_RADIUS, 1.56, 24]}
                 />
@@ -261,62 +401,79 @@ export default function Table3D({
             </mesh>
 
             {labelsVisible && (
-                <Html center position={[0, 1.5, 0]} style={{ pointerEvents: 'none' }}>
-                    <div style={{ transform: 'translate(-50%, -50%)' }}>
-                        <span
-                            data-table-label={id}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxSizing: 'border-box',
-                                width: '32px',
-                                height: '32px',
-                                padding: 0,
-                                fontFamily: 'var(--font-display)',
-                                fontSize: '15px',
-                                fontWeight: 600,
-                                lineHeight: 1,
-                                color: 'var(--color-chocolate)',
-                                whiteSpace: 'nowrap',
-                                background: 'var(--color-cream)',
-                                border: '2px solid var(--color-chocolate)',
-                                borderRadius: 'var(--radius-pill)',
-                                boxShadow: 'var(--shadow-sm)',
-                            }}
+                <Html center position={[0, baseY + LABEL_Y, 0]} style={{ pointerEvents: 'none' }}>
+                    <div
+                        className={styles.labelAnchor}
+                        style={{
+                            '--status-color': statusColor,
+                            '--status-text': statusConfig.textColor,
+                            '--reservation-color': reservationColor,
+                        }}
+                    >
+                        <div
+                            className={styles.statusBubble}
+                            role="img"
+                            aria-label={`${displayName}, ${statusConfig.label}`}
                         >
-                            {number}
-                        </span>
+                            <span className={styles.number}>{number}</span>
+                            <TableStatusIcon
+                                status={statusKey}
+                                className={styles.statusIcon}
+                                size={16}
+                            />
+                            <span className={styles.statusText}>
+                                {statusConfig.shortLabel}
+                            </span>
+                        </div>
+
+                        {activeReservation && (
+                            <span
+                                className={styles.reservationChip}
+                                title={`${activeReservation.customer_name} · ${formatReservationTime(
+                                    activeReservation.reserved_for,
+                                )}`}
+                            >
+                                {activeReservation.customer_name} ·{' '}
+                                {formatReservationTime(activeReservation.reserved_for)}
+                            </span>
+                        )}
+
+                        {upcomingReservation && (
+                            <span className={styles.nextChip}>
+                                <span className={styles.nextDot} aria-hidden="true" />
+                                Reserva {formatReservationTime(upcomingReservation.reserved_for)}
+                            </span>
+                        )}
                     </div>
                 </Html>
             )}
 
-            <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-                <ringGeometry args={selected ? [0.95, 1.38, 48] : [1.06, 1.28, 48]} />
-                <meshBasicMaterial
-                    color={ringColor}
-                    transparent
-                    opacity={0.85}
-                    toneMapped={false}
+            {showEffects && haloMaterial && (
+                <mesh
+                    geometry={HALO_GEOMETRY}
+                    material={haloMaterial}
+                    rotation={[-Math.PI / 2, 0, 0]}
+                    position={[0, 0.012, 0]}
+                    renderOrder={1}
                 />
+            )}
+
+            <mesh
+                geometry={OUTER_RING_GEOMETRY}
+                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, 0.03, 0]}
+                renderOrder={2}
+            >
+                <meshBasicMaterial color={CHOCOLATE} toneMapped={false} />
             </mesh>
 
-            {statusKey === 'listo' && animationsEnabled && (
-                <mesh
-                    ref={readyRef}
-                    geometry={READY_GEOMETRY}
-                    position={[0, READY_ICON_Y, 0]}
-                    raycast={noRaycast}
-                >
-                    <meshStandardMaterial
-                        color="#e8a53a"
-                        emissive="#ffcf5c"
-                        emissiveIntensity={1.6}
-                        roughness={0.6}
-                        toneMapped={false}
-                    />
-                </mesh>
-            )}
+            <mesh
+                geometry={ringGeometry}
+                material={ringMaterial}
+                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, 0.032, 0]}
+                renderOrder={3}
+            />
         </group>
     );
 }

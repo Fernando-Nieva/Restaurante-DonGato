@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Admin;
 
 use App\Enums\OrderStatus;
+use App\Enums\TableZone;
 use App\Events\TablesUpdated;
 use App\Models\Order;
 use App\Models\Table;
@@ -30,6 +31,7 @@ class TableAdminApiTest extends TestCase
         return array_merge([
             'number' => 10,
             'seats' => 4,
+            'zone' => TableZone::Salon->value,
             'pos_x' => 0,
             'pos_z' => 0,
         ], $overrides);
@@ -79,6 +81,7 @@ class TableAdminApiTest extends TestCase
             ->assertJsonPath('data.pos_x', 2.5)
             ->assertJsonPath('data.pos_y', 0)
             ->assertJsonPath('data.pos_z', -1.5)
+            ->assertJsonPath('data.zone', 'salon')
             ->assertJsonPath('data.is_active', true);
 
         $tableId = $response->json('data.id');
@@ -90,6 +93,7 @@ class TableAdminApiTest extends TestCase
             'pos_x' => 2.5,
             'pos_y' => 0,
             'pos_z' => -1.5,
+            'zone' => 'salon',
             'is_active' => true,
         ]);
 
@@ -130,7 +134,8 @@ class TableAdminApiTest extends TestCase
             ->assertJsonPath('data.seats', 8)
             ->assertJsonPath('data.pos_x', -2.5)
             ->assertJsonPath('data.pos_y', 0)
-            ->assertJsonPath('data.pos_z', 1.5);
+            ->assertJsonPath('data.pos_z', 1.5)
+            ->assertJsonPath('data.zone', 'salon');
 
         $this->assertDatabaseHas('tables', [
             'id' => $table->id,
@@ -139,6 +144,7 @@ class TableAdminApiTest extends TestCase
             'pos_x' => -2.5,
             'pos_y' => 0,
             'pos_z' => 1.5,
+            'zone' => 'salon',
         ]);
 
         Event::assertDispatched(TablesUpdated::class, fn (TablesUpdated $event): bool => $event->tableId === $table->id
@@ -233,8 +239,8 @@ class TableAdminApiTest extends TestCase
         return [
             'too many seats' => [['seats' => 13], 'seats'],
             'zero seats' => [['seats' => 0], 'seats'],
-            'x outside room' => [['pos_x' => 8.01], 'pos_x'],
-            'z outside room' => [['pos_z' => -6.01], 'pos_z'],
+            'x outside salon' => [['pos_x' => 8.01], 'pos_x'],
+            'z outside salon' => [['pos_z' => -6.01], 'pos_z'],
         ];
     }
 

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Table;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class OrderService
@@ -24,7 +25,17 @@ class OrderService
     public function createOrder(int $tableId, int $userId, array $items, ?string $notes = null): Order
     {
         $order = DB::transaction(function () use ($tableId, $userId, $items, $notes): Order {
-            Table::findOrFail($tableId);
+            $table = Table::findOrFail($tableId);
+
+            if ($this->getTableStatus($table) === 'reservada') {
+                $reservation = app(ReservationService::class)->currentReservation($table);
+
+                throw ValidationException::withMessages([
+                    'table_id' => $reservation !== null
+                        ? "La mesa está reservada para {$reservation->customer_name} a las {$reservation->reserved_for->format('H:i')}. Sentá la reserva primero."
+                        : 'La mesa está reservada. Sentá la reserva primero.',
+                ]);
+            }
 
             $products = Product::query()
                 ->whereIn('id', array_column($items, 'product_id'))
@@ -100,11 +111,16 @@ class OrderService
     }
 
     /**
-     * Status of a table derived from its active orders (pendiente, preparando, listo):
-     * "libre" when there are none, otherwise the oldest active order status.
+     * Status of a table derived from its active orders and reservations:
+     * "libre" when there are none, the oldest active order status when there
+     * are orders, or "reservada" when an active reservation window contains
+     * the current time. Overdue reservations are marked as expired on read.
      */
     public function getTableStatus(Table $table): string
     {
+        $reservationService = app(ReservationService::class);
+        $reservationService->expireOverdueReservations($table);
+
         $active = [OrderStatus::Pendiente, OrderStatus::Preparando, OrderStatus::Listo];
 
         $order = $table->orders()
@@ -113,6 +129,12 @@ class OrderService
             ->oldest('id')
             ->first();
 
-        return $order?->status->value ?? 'libre';
+        if ($order !== null) {
+            return $order->status->value;
+        }
+
+        return $reservationService->currentReservation($table) !== null
+            ? 'reservada'
+            : 'libre';
     }
 }

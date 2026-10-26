@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Customer from './Customer';
+import { getZoneBounds } from './roomLayout';
 import { getChairLayout } from '../utils/chairs';
 
 const ACTIVE_STATUSES = new Set(['pendiente', 'preparando', 'listo']);
@@ -64,6 +65,10 @@ const buildTargets = (tables, activeByTable) => {
     const targets = [];
 
     tables.forEach((table) => {
+        if (String(table.status ?? '').toLowerCase() === 'reservada') {
+            return;
+        }
+
         const active = activeByTable.get(String(table.id));
 
         if (!active || active.length === 0) {
@@ -75,9 +80,12 @@ const buildTargets = (tables, activeByTable) => {
         const count = 1 + (hash % seats);
         const offset = Math.floor(hash / seats) % seats;
         const ready = active.some((order) => String(order.status ?? '').toLowerCase() === READY_STATUS);
-        const chairs = getChairLayout(seats);
         const tableX = Number(table.pos_x) || 0;
         const tableZ = Number(table.pos_z) || 0;
+        const chairs = getChairLayout(seats, getZoneBounds(table.zone), {
+            x: tableX,
+            z: tableZ,
+        });
         const baseY = Number(table.pos_y) || 0;
         const tablePhase = ((hash % 1000) / 1000) * Math.PI;
 

@@ -56,9 +56,16 @@ const request = async (path, { method = 'GET', body, signal } = {}) => {
     });
 
     if (!response.ok) {
-        const error = new Error(`${method} ${path} respondió ${response.status}`);
+        const payload = await response.json().catch(() => null);
+        const message =
+            (payload && typeof payload === 'object' && payload.message) ||
+            `${method} ${path} respondió ${response.status}`;
+        const error = new Error(message);
 
         error.status = response.status;
+        error.errors =
+            payload && typeof payload === 'object' && payload.errors ? payload.errors : {};
+        error.payload = payload;
 
         throw error;
     }
@@ -181,6 +188,22 @@ export default function useOrders() {
         }
     }, [handleUnauthorized]);
 
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (document.hidden) return;
+
+            void reloadTables();
+        };
+        const interval = window.setInterval(refreshWhenVisible, 60000);
+
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [reloadTables]);
+
     const consumeReady = useCallback(() => {
         const queue = readyQueue.current;
 
@@ -277,16 +300,97 @@ export default function useOrders() {
             reloadTables();
         };
 
+        const handleReservationUpdated = (payload) => {
+            if (!payload || typeof payload !== 'object') return;
+
+            const tableId = payload.table_id;
+            const tableStatus = payload.table_status;
+            const summary = payload.reservation;
+
+            if (tableId == null) {
+                reloadTables();
+
+                return;
+            }
+
+            const isActive = String(summary?.status ?? '').toLowerCase() === 'activa';
+
+            setTables((previous) =>
+                previous.map((table) => {
+                    if (String(table.id) !== String(tableId)) return table;
+
+                    const next = {
+                        ...table,
+                        status: tableStatus ?? table.status,
+                    };
+
+                    if (isActive) {
+                        const currentReservation = table.reservation;
+                        const upcomingReservation = table.next_reservation;
+                        const isCurrent =
+                            currentReservation &&
+                            String(currentReservation.id) === String(summary?.id);
+
+                        if (isCurrent) {
+                            next.reservation = { ...currentReservation, ...summary };
+                        } else if (
+                            String(next.status).toLowerCase() === 'reservada' &&
+                            currentReservation
+                        ) {
+                            next.next_reservation = {
+                                ...(upcomingReservation ?? {}),
+                                ...summary,
+                            };
+                        } else if (String(next.status).toLowerCase() === 'reservada') {
+                            next.reservation = {
+                                ...(currentReservation ?? {}),
+                                ...summary,
+                            };
+                            next.next_reservation = null;
+                        } else {
+                            next.reservation = null;
+                            next.next_reservation = {
+                                ...(upcomingReservation ?? {}),
+                                ...summary,
+                            };
+                        }
+
+                        return next;
+                    }
+
+                    if (
+                        table.reservation &&
+                        String(table.reservation.id) === String(summary?.id)
+                    ) {
+                        next.reservation = null;
+                    }
+
+                    if (
+                        table.next_reservation &&
+                        String(table.next_reservation.id) === String(summary?.id)
+                    ) {
+                        next.next_reservation = null;
+                    }
+
+                    return next;
+                }),
+            );
+
+            reloadTables();
+        };
+
         const channel = echo.private(CHANNEL_NAME);
 
         channel.listen('OrderCreated', handleOrderCreated);
         channel.listen('OrderStatusUpdated', handleStatusUpdated);
         channel.listen('TablesUpdated', handleTablesUpdated);
+        channel.listen('ReservationUpdated', handleReservationUpdated);
 
         return () => {
             channel.stopListening('OrderCreated', handleOrderCreated);
             channel.stopListening('OrderStatusUpdated', handleStatusUpdated);
             channel.stopListening('TablesUpdated', handleTablesUpdated);
+            channel.stopListening('ReservationUpdated', handleReservationUpdated);
         };
     }, [echo, reloadOrders, reloadTables]);
 
@@ -332,6 +436,46 @@ export default function useOrders() {
         [handleUnauthorized],
     );
 
+    const seatReservation = useCallback(
+        async (reservationId) => {
+            try {
+                const response = await request(`/api/reservations/${reservationId}/seat`, {
+                    method: 'PATCH',
+                });
+                const reservation = response?.data ?? response;
+                const tableId = reservation?.table_id;
+
+                if (tableId != null) {
+                    setTables((previous) =>
+                        previous.map((table) => {
+                            if (String(table.id) !== String(tableId)) return table;
+
+                            return {
+                                ...table,
+                                status: 'libre',
+                                reservation: null,
+                                next_reservation:
+                                    table.next_reservation &&
+                                    String(table.next_reservation.id) === String(reservationId)
+                                        ? null
+                                        : table.next_reservation,
+                            };
+                        }),
+                    );
+                }
+
+                reloadTables();
+
+                return reservation;
+            } catch (error) {
+                if (await handleUnauthorized(error)) return null;
+
+                throw error;
+            }
+        },
+        [handleUnauthorized, reloadTables],
+    );
+
     return {
         tables,
         orders,
@@ -342,6 +486,8 @@ export default function useOrders() {
         connectionStatus,
         createOrder,
         updateStatus,
+        seatReservation,
+        refreshTables: reloadTables,
         consumeReady,
         consumeDone,
     };

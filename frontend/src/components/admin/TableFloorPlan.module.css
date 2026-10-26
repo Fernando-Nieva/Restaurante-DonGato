@@ -8,7 +8,7 @@
 .svg {
     display: block;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 8 / 9;
     background:
         radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-cream) 72%, white), transparent 72%),
         var(--color-surface);
@@ -21,10 +21,42 @@
     cursor: crosshair;
 }
 
-.room {
+.salon {
     fill: color-mix(in srgb, var(--color-cream) 38%, white);
     stroke: var(--color-line);
     stroke-width: 1.5;
+}
+
+.terrace {
+    fill: color-mix(in srgb, var(--color-success) 8%, var(--color-cream));
+    stroke: color-mix(in srgb, var(--color-success-strong) 32%, var(--color-line));
+    stroke-width: 1.5;
+}
+
+.entrance {
+    fill: color-mix(in srgb, var(--color-orange) 14%, var(--color-surface));
+    stroke: color-mix(in srgb, var(--color-orange-dark) 42%, var(--color-line));
+    stroke-width: 1.2;
+    stroke-dasharray: 4 3;
+}
+
+.activeZone {
+    fill: none;
+    stroke: var(--color-orange-dark);
+    stroke-width: 1.8;
+    stroke-dasharray: 7 5;
+    pointer-events: none;
+}
+
+.zoneLabel {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+    user-select: none;
 }
 
 .grid {
@@ -40,14 +72,26 @@
 }
 
 .marker {
+    cursor: default;
+}
+
+.markerInteractive {
     cursor: pointer;
 }
 
 .markerCircle {
-    fill: color-mix(in srgb, var(--table-color, var(--color-line)) 15%, var(--color-surface));
+    fill: color-mix(in srgb, var(--table-color, var(--color-line)) 22%, var(--color-surface));
     stroke: var(--table-color, var(--color-line));
-    stroke-width: 1.8;
+    stroke-width: 2.2;
     transition: fill 0.15s ease, stroke-width 0.15s ease;
+}
+
+.markerSelectionRing {
+    fill: none;
+    stroke: var(--color-orange);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+    pointer-events: none;
 }
 
 .markerNumber {
@@ -62,13 +106,16 @@
 }
 
 .markerSelected .markerCircle {
-    fill: color-mix(in srgb, var(--color-orange) 30%, var(--color-surface));
-    stroke: var(--color-orange-dark);
-    stroke-width: 2.6;
+    fill: color-mix(in srgb, var(--table-color, var(--color-orange)) 34%, var(--color-surface));
+    stroke: var(--table-color, var(--color-orange-dark));
+    stroke-width: 3;
+    filter: drop-shadow(
+        0 0 4px color-mix(in srgb, var(--color-orange) 65%, transparent)
+    );
 }
 
 .markerCollision .markerCircle {
-    fill: color-mix(in srgb, var(--color-danger) 22%, var(--color-surface));
+    fill: color-mix(in srgb, var(--table-color, var(--color-danger)) 18%, var(--color-surface));
     stroke: var(--color-red-strong);
     stroke-width: 2.8;
 }
@@ -112,8 +159,12 @@
 .legendSwatch {
     width: 11px;
     height: 11px;
-    background-color: color-mix(in srgb, var(--color-success) 20%, var(--color-surface));
-    border: 1.5px solid var(--color-success);
+    background-color: color-mix(
+        in srgb,
+        var(--legend-color, var(--color-success)) 20%,
+        var(--color-surface)
+    );
+    border: 1.5px solid var(--legend-color, var(--color-success));
     border-radius: 50%;
 }
 
@@ -125,6 +176,12 @@
 .legendCollision {
     background-color: color-mix(in srgb, var(--color-danger) 22%, var(--color-surface));
     border-color: var(--color-red-strong);
+}
+
+.legendTerrace {
+    background-color: color-mix(in srgb, var(--color-success) 16%, var(--color-surface));
+    border-color: var(--color-success-strong);
+    border-radius: var(--radius-sm);
 }
 
 .warning {

@@ -53,6 +53,17 @@ export const adminApi = {
 
     listOrders: (filters = {}) => api.get(`/api/admin/orders${buildQuery(filters)}`),
 
+    listReservations: (filters = {}) =>
+        api.get(`/api/admin/reservations${buildQuery(filters)}`).then(listData),
+
+    createReservation: (data) => api.post('/api/admin/reservations', data).then(itemData),
+
+    updateReservation: (id, data) =>
+        api.put(`/api/admin/reservations/${id}`, data).then(itemData),
+
+    cancelReservation: (id) =>
+        api.patch(`/api/admin/reservations/${id}/cancel`).then(itemData),
+
     getSummary: (filters = {}) =>
         api.get(`/api/admin/stats/summary${buildQuery(filters)}`),
 

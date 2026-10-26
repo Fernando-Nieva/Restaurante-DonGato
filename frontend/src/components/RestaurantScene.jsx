@@ -21,11 +21,18 @@ import RoomShell from './RoomShell';
 import Decor from './Decor';
 import Cats from './Cats';
 import Customers from './Customers';
+import Terrace from './Terrace';
 import WaiterManager from './WaiterManager';
 import Table3D from './Table3D';
-import { TARGET_LIMIT, ZOOM_BASE, getZoomProfile } from './roomLayout';
-import { TABLE_STATUS_COLORS, TABLE_STATUS_LABELS } from '../constants/orderStatus';
+import TableStatusIcon from './TableStatusIcon';
+import { CAMERA_TARGET, TARGET_LIMIT, ZOOM_BASE, getZoomProfile } from './roomLayout';
+import {
+    TABLE_STATUS_COLORS,
+    TABLE_STATUS_CONFIG,
+    TABLE_STATUS_LABELS,
+} from '../constants/orderStatus';
 import useBreakpoint from '../hooks/useBreakpoint';
+import { tableDisplayName } from '../utils/table';
 import {
     QUALITY_OPTIONS,
     getInitialQuality,
@@ -36,7 +43,7 @@ import {
 import styles from './RestaurantScene.module.css';
 
 const CAMERA = {
-    position: [14, 14, 14],
+    position: [14, 14, 18],
     zoom: ZOOM_BASE,
     near: 0.1,
     far: 200,
@@ -45,14 +52,13 @@ const CAMERA = {
 const ENABLE_BLOOM = (navigator.hardwareConcurrency ?? 8) >= 4;
 
 const ISO_POSITION = new Vector3(...CAMERA.position);
-const ISO_TARGET = new Vector3(0, 0, 0);
+const ISO_TARGET = new Vector3(...CAMERA_TARGET);
 const MIN_POLAR_ANGLE = 0.2;
 const MAX_POLAR_ANGLE = Math.PI / 2 - 0.05;
 const ANIMATIONS_KEY = 'restaurante-animaciones';
-const TABLE_LEGEND = Object.entries(TABLE_STATUS_LABELS).map(([status, label]) => ({
+const TABLE_LEGEND = Object.entries(TABLE_STATUS_CONFIG).map(([status, config]) => ({
     status,
-    label,
-    color: TABLE_STATUS_COLORS[status],
+    ...config,
 }));
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -291,7 +297,11 @@ function CameraRig({ focus, resetRequest, onLabelsVisibleChange }) {
 
 function SceneFallback({ tables = [], selectedId = null, onSelect }) {
     return (
-        <div className={styles.fallback} role="region" aria-label="Salón en modo lista">
+        <div
+            className={styles.fallback}
+            role="region"
+            aria-label="Restaurante en modo lista"
+        >
             <div className={styles.fallbackIntro}>
                 <span className={styles.fallbackKicker}>Vista simplificada</span>
                 <h2 className={styles.fallbackTitle}>Vista 3D no disponible</h2>
@@ -306,7 +316,7 @@ function SceneFallback({ tables = [], selectedId = null, onSelect }) {
             ) : (
                 <ul className={styles.fallbackList}>
                     {tables.map((table) => {
-                        const number = table.number ?? table.name ?? table.id;
+                        const displayName = tableDisplayName(table);
                         const seats = Number(table.seats) || 0;
                         const statusKey = String(table.status ?? 'libre').toLowerCase();
                         const statusLabel = TABLE_STATUS_LABELS[statusKey] ?? 'Libre';
@@ -322,10 +332,10 @@ function SceneFallback({ tables = [], selectedId = null, onSelect }) {
                                         selected ? styles.fallbackTableSelected : ''
                                     }`}
                                     aria-pressed={selected}
-                                    aria-label={`Mesa ${number}, ${seats} asientos, ${statusLabel}`}
+                                    aria-label={`${displayName}, ${seats} asientos, ${statusLabel}`}
                                     onClick={() => onSelect?.(table.id)}
                                 >
-                                    <span className={styles.fallbackNumber}>Mesa {number}</span>
+                                    <span className={styles.fallbackNumber}>{displayName}</span>
                                     <span className={styles.fallbackSeats}>
                                         {seats} asiento{seats === 1 ? '' : 's'}
                                     </span>
@@ -333,7 +343,11 @@ function SceneFallback({ tables = [], selectedId = null, onSelect }) {
                                         className={styles.fallbackStatus}
                                         style={{ '--status-color': statusColor }}
                                     >
-                                        <span className={styles.fallbackDot} aria-hidden="true" />
+                                        <TableStatusIcon
+                                            status={statusKey}
+                                            className={styles.fallbackIcon}
+                                            size={14}
+                                        />
                                         {statusLabel}
                                     </span>
                                 </button>
@@ -518,7 +532,7 @@ export default function RestaurantScene({
                             <Suspense
                                 fallback={
                                     <Html center className={styles.loading}>
-                                        <span>Cargando salón…</span>
+                                        <span>Cargando restaurante…</span>
                                     </Html>
                                 }
                             >
@@ -526,6 +540,10 @@ export default function RestaurantScene({
                                     animationsEnabled={animationsEnabled}
                                     steamEnabled={qualityConfig.steam}
                                     plantMotionEnabled={qualityConfig.plantMotion}
+                                />
+                                <Terrace
+                                    tables={tables}
+                                    decorEnabled={qualityConfig.terraceDecor}
                                 />
                                 <Cats
                                     tables={tables}
@@ -561,10 +579,14 @@ export default function RestaurantScene({
                                         pos_x={table.pos_x}
                                         pos_y={table.pos_y}
                                         pos_z={table.pos_z}
+                                        zone={table.zone}
                                         seats={table.seats}
                                         status={table.status}
+                                        reservation={table.reservation}
+                                        next_reservation={table.next_reservation}
                                         selected={String(selectedId) === String(table.id)}
                                         animationsEnabled={animationsEnabled}
+                                        showEffects={qualityConfig.tableEffects}
                                         labelsVisible={labelsVisible}
                                         onSelect={onSelect}
                                     />
@@ -628,10 +650,12 @@ export default function RestaurantScene({
                                 {TABLE_LEGEND.map((item) => (
                                     <li key={item.status}>
                                         <span
-                                            className={styles.legendDot}
-                                            style={{ backgroundColor: item.color }}
+                                            className={styles.legendIcon}
+                                            style={{ color: item.color }}
                                             aria-hidden="true"
-                                        />
+                                        >
+                                            <TableStatusIcon status={item.status} />
+                                        </span>
                                         {item.label}
                                     </li>
                                 ))}

@@ -1,4 +1,4 @@
-import { ROOM_LAYOUT, WINDOW_BAND } from './roomLayout';
+import { ENTRANCE_POINT, ROOM_LAYOUT, TERRACE, WINDOW_BAND } from './roomLayout';
 
 const COLORS = {
     wall: '#f2e3c6',
@@ -6,11 +6,17 @@ const COLORS = {
     cornice: '#e0c9a4',
     floor: '#e9d3ab',
     deck: '#c99e6b',
+    terraceDeck: '#c49562',
+    terraceSeam: '#a97849',
     base: '#c8bcab',
     stairs: '#c99e6b',
     trim: '#4a3524',
     glass: '#a9d5de',
     ceiling: '#e7d5b5',
+    rail: '#8a5a3a',
+    planter: '#9b6441',
+    leaf: '#4e7a3d',
+    leafDark: '#3f6832',
 };
 
 const noRaycast = () => null;
@@ -143,6 +149,73 @@ function Pillar({ x, z, height }) {
     );
 }
 
+function RailingRun({ axis, at, from, to }) {
+    const length = to - from;
+    const center = (from + to) / 2;
+    const posts = Math.max(2, Math.round(length / 2.1));
+    const postPositions = Array.from(
+        { length: posts + 1 },
+        (_, index) => from + (index * length) / posts,
+    );
+    const place = (value, y, depth) =>
+        axis === 'x' ? [value, y, at] : [at, y, value];
+    const span = (size, height, depth) =>
+        axis === 'x' ? [size, height, depth] : [depth, height, size];
+
+    return (
+        <group>
+            {postPositions.map((value) => (
+                <ShellBox
+                    key={`${axis}-${value}`}
+                    args={[0.15, TERRACE.railHeight, 0.15]}
+                    position={place(value, TERRACE.railHeight / 2, 0)}
+                    color={COLORS.rail}
+                />
+            ))}
+            <ShellBox
+                args={span(length, 0.13, 0.2)}
+                position={place(center, TERRACE.railHeight - 0.08, 0)}
+                color={COLORS.rail}
+            />
+            <ShellBox
+                args={span(length, 0.08, 0.12)}
+                position={place(center, TERRACE.railHeight * 0.55, 0)}
+                color={COLORS.rail}
+            />
+            <ShellBox
+                args={span(length, 0.07, 0.1)}
+                position={place(center, 0.18, 0)}
+                color={COLORS.rail}
+            />
+        </group>
+    );
+}
+
+function Planter({ x, z, scale = 1 }) {
+    return (
+        <group position={[x, TERRACE.deckY, z]} scale={scale}>
+            <ShellBox args={[0.9, 0.62, 0.9]} position={[0, 0.31, 0]} color={COLORS.planter} />
+            <ShellBox
+                args={[0.98, 0.1, 0.98]}
+                position={[0, 0.61, 0]}
+                color={COLORS.cornice}
+            />
+            <mesh raycast={noRaycast} castShadow receiveShadow position={[0, 0.98, 0]}>
+                <sphereGeometry args={[0.44, 16, 12]} />
+                <meshStandardMaterial color={COLORS.leaf} roughness={0.9} />
+            </mesh>
+            <mesh raycast={noRaycast} castShadow position={[0.18, 1.28, 0.08]}>
+                <sphereGeometry args={[0.31, 14, 10]} />
+                <meshStandardMaterial color={COLORS.leafDark} roughness={0.9} />
+            </mesh>
+            <mesh raycast={noRaycast} castShadow position={[-0.2, 1.18, -0.06]}>
+                <sphereGeometry args={[0.27, 14, 10]} />
+                <meshStandardMaterial color={COLORS.leaf} roughness={0.9} />
+            </mesh>
+        </group>
+    );
+}
+
 export default function RoomShell() {
     const {
         minX,
@@ -170,6 +243,14 @@ export default function RoomShell() {
     const sideStripeLength = width + wallThickness * 2 - stripeLength;
     const sideStripeX = minX - wallThickness + stripeLength + sideStripeLength / 2;
     const backStripeZ = minZ - wallThickness + stripeLength / 2;
+    const entranceMinX = ENTRANCE_POINT.x - TERRACE.entranceHalfWidth;
+    const entranceMaxX = ENTRANCE_POINT.x + TERRACE.entranceHalfWidth;
+    const terraceWidth = TERRACE.deckMaxX - TERRACE.deckMinX;
+    const terraceDepth = TERRACE.deckMaxZ - TERRACE.deckMinZ;
+    const terraceMidX = (TERRACE.deckMinX + TERRACE.deckMaxX) / 2;
+    const terraceMidZ = (TERRACE.deckMinZ + TERRACE.deckMaxZ) / 2;
+    const terraceBaseY = TERRACE.deckY - 0.48;
+    const terraceSeams = [8.2, 10.1, 12.0, 13.9];
 
     return (
         <group>
@@ -189,6 +270,32 @@ export default function RoomShell() {
                 color={COLORS.floor}
                 roughness={0.9}
             />
+
+            <ShellBox
+                args={[
+                    terraceWidth + baseMargin * 2,
+                    0.5,
+                    terraceDepth + baseMargin * 2,
+                ]}
+                position={[terraceMidX, terraceBaseY - 0.25, terraceMidZ]}
+                color={COLORS.base}
+            />
+            <ShellBox
+                args={[terraceWidth, 0.48, terraceDepth]}
+                position={[terraceMidX, TERRACE.deckY - 0.24, terraceMidZ]}
+                color={COLORS.terraceDeck}
+                roughness={0.9}
+            />
+            {terraceSeams.map((z) => (
+                <ShellBox
+                    key={`terrace-seam-${z}`}
+                    args={[terraceWidth, 0.012, 0.035]}
+                    position={[terraceMidX, TERRACE.deckY + 0.006, z]}
+                    color={COLORS.terraceSeam}
+                    castShadow={false}
+                    receiveShadow={false}
+                />
+            ))}
 
             <StraightWall
                 axis="x"
@@ -215,6 +322,15 @@ export default function RoomShell() {
                 at={maxZ}
                 side={-1}
                 from={minX}
+                to={entranceMinX}
+                height={shortWallHeight}
+                band={WINDOW_BAND.short}
+            />
+            <StraightWall
+                axis="x"
+                at={maxZ}
+                side={-1}
+                from={entranceMaxX}
                 to={maxX}
                 height={shortWallHeight}
                 band={WINDOW_BAND.short}
@@ -246,15 +362,56 @@ export default function RoomShell() {
             />
 
             <ShellBox
-                args={[2.4, 0.32, 0.26]}
-                position={[midX, baseY + 0.16, maxZ + deckWidth + 0.13]}
-                color={COLORS.stairs}
+                args={[0.16, 1.42, 0.34]}
+                position={[entranceMinX, 0.71, maxZ]}
+                color={COLORS.trim}
             />
             <ShellBox
-                args={[2.4, 0.16, 0.26]}
-                position={[midX, baseY + 0.08, maxZ + deckWidth + 0.39]}
-                color={COLORS.stairs}
+                args={[0.16, 1.42, 0.34]}
+                position={[entranceMaxX, 0.71, maxZ]}
+                color={COLORS.trim}
             />
+            <ShellBox
+                args={[TERRACE.entranceHalfWidth * 2 + 0.16, 0.14, 0.34]}
+                position={[ENTRANCE_POINT.x, 1.35, maxZ]}
+                color={COLORS.trim}
+            />
+            <ShellBox
+                args={[TERRACE.entranceHalfWidth * 2, 0.02, 0.36]}
+                position={[ENTRANCE_POINT.x, 0.01, maxZ + 0.2]}
+                color={COLORS.stairs}
+                castShadow={false}
+            />
+            <ShellBox
+                args={[TERRACE.entranceHalfWidth * 2 - 0.2, 0.012, 0.28]}
+                position={[ENTRANCE_POINT.x, 0.006, maxZ + 0.5]}
+                color={COLORS.stairs}
+                castShadow={false}
+            />
+
+            <RailingRun
+                axis="z"
+                at={TERRACE.deckMinX + 0.15}
+                from={TERRACE.minZ}
+                to={TERRACE.deckMaxZ - 0.15}
+            />
+            <RailingRun
+                axis="z"
+                at={TERRACE.deckMaxX - 0.15}
+                from={TERRACE.minZ}
+                to={TERRACE.deckMaxZ - 0.15}
+            />
+            <RailingRun
+                axis="x"
+                at={TERRACE.deckMaxZ - 0.15}
+                from={TERRACE.deckMinX + 0.15}
+                to={TERRACE.deckMaxX - 0.15}
+            />
+
+            <Planter x={-8.35} z={13.25} />
+            <Planter x={8.35} z={13.25} />
+            <Planter x={-8.55} z={7.25} scale={0.82} />
+            <Planter x={8.55} z={7.25} scale={0.82} />
         </group>
     );
 }

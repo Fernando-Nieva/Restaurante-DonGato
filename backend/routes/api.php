@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\Admin\ReservationController as AdminReservationController;
 use App\Http\Controllers\Api\Admin\StatsController as AdminStatsController;
 use App\Http\Controllers\Api\Admin\TableController as AdminTableController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\TableController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
 
+    Route::patch('/reservations/{reservation}/seat', [ReservationController::class, 'seat'])
+        ->middleware('role:mozo,admin');
+
     Route::prefix('admin')->middleware('role:admin')->group(function (): void {
         Route::get('/products', [AdminProductController::class, 'index']);
         Route::post('/products', [AdminProductController::class, 'store']);
@@ -47,6 +52,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::patch('/users/{user}/active', [AdminUserController::class, 'updateActive']);
 
         Route::get('/orders', [AdminOrderController::class, 'index']);
+
+        Route::get('/reservations', [AdminReservationController::class, 'index']);
+        Route::post('/reservations', [AdminReservationController::class, 'store']);
+        Route::put('/reservations/{reservation}', [AdminReservationController::class, 'update']);
+        Route::patch('/reservations/{reservation}/cancel', [AdminReservationController::class, 'cancel']);
 
         Route::get('/stats/summary', [AdminStatsController::class, 'summary']);
         Route::get('/stats/top-products', [AdminStatsController::class, 'topProducts']);

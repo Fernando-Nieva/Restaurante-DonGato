@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\TableZone;
 use App\Models\Table;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -23,6 +24,7 @@ class TableFactory extends Factory
             'pos_x' => fake()->randomFloat(2, -8, 8),
             'pos_y' => 0,
             'pos_z' => fake()->randomFloat(2, -6, 6),
+            'zone' => TableZone::Salon->value,
             'is_active' => true,
         ];
     }

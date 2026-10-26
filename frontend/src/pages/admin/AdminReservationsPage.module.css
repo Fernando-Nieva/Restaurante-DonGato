@@ -1,0 +1,322 @@
+.dateControls {
+    display: flex;
+    flex: 1 1 300px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.dateField {
+    display: flex;
+    flex: 1 1 140px;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dateField label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-brown);
+}
+
+.dateButton {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-brown);
+    cursor: pointer;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.dateButton:focus-visible {
+    outline: 3px solid var(--color-orange);
+    outline-offset: 2px;
+}
+
+.filters {
+    display: flex;
+    flex: 1 1 360px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+}
+
+.clearFilters {
+    align-self: flex-end;
+}
+
+.tablesError {
+    flex-basis: 100%;
+}
+
+.dateHeading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.dateTitle {
+    margin: 0;
+    font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+    line-height: 1.2;
+}
+
+.dateCount {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.todayCard {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-reserved) 17%, var(--color-surface)),
+        var(--color-surface)
+    );
+    border: 1px solid color-mix(in srgb, var(--color-reserved) 38%, var(--color-line));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.todayCount {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.todayNumber {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 8vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1;
+    color: var(--color-reserved-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.todayLabel {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-brown);
+}
+
+.nextInfo {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+    color: var(--color-brown);
+    overflow-wrap: anywhere;
+}
+
+.nextInfo strong {
+    color: var(--color-chocolate);
+}
+
+.listSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sectionCount {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.cardGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-left: 4px solid var(--card-color, var(--color-line));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cardTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.cardTime {
+    font-family: var(--font-display);
+    font-size: clamp(1.65rem, 7vw, 2rem);
+    font-weight: 600;
+    line-height: 1;
+    color: var(--color-chocolate);
+    font-variant-numeric: tabular-nums;
+}
+
+.cardName {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-chocolate);
+    overflow-wrap: anywhere;
+}
+
+.meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    margin: 0;
+    padding: 0;
+}
+
+.metaItem {
+    min-width: 0;
+}
+
+.metaItem dt {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.metaItem dd {
+    margin: 1px 0 0;
+    font-size: var(--text-sm);
+    color: var(--color-brown);
+    overflow-wrap: anywhere;
+}
+
+.metaItem a {
+    color: var(--color-orange-dark);
+    text-decoration: none;
+}
+
+.notes {
+    margin: 0;
+    padding: 8px 10px;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+    color: var(--color-brown);
+    background-color: color-mix(in srgb, var(--color-cream) 70%, var(--color-surface));
+    border-left: 3px solid color-mix(in srgb, var(--card-color) 65%, var(--color-line));
+    border-radius: var(--radius-sm);
+    overflow-wrap: anywhere;
+}
+
+.cardActions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: auto;
+    padding-top: var(--space-2);
+    border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+
+.cardActions > button {
+    flex: 1;
+}
+
+.cardActions .cancelButton {
+    color: var(--color-red-strong);
+}
+
+.timelineLoading {
+    margin: 0;
+    padding: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    text-align: center;
+    background-color: var(--color-surface);
+    border: 1px dashed var(--color-line);
+    border-radius: var(--radius-md);
+}
+
+@media (min-width: 600px) {
+    .todayCard {
+        padding: var(--space-4);
+    }
+
+    .card {
+        padding: var(--space-4);
+    }
+}
+
+@media (min-width: 720px) {
+    .cardGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .cardGrid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 599.98px) {
+    .dateControls,
+    .filters {
+        flex-basis: 100%;
+    }
+
+    .clearFilters {
+        align-self: stretch;
+    }
+
+    .todayCard {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (hover: hover) {
+    .dateButton:hover {
+        color: var(--color-chocolate);
+        background-color: var(--color-cream-dark);
+        border-color: color-mix(in srgb, var(--color-line) 60%, var(--color-brown));
+    }
+
+    .card:hover {
+        border-color: color-mix(in srgb, var(--card-color) 45%, var(--color-line));
+        box-shadow: var(--shadow-md);
+    }
+
+    .metaItem a:hover {
+        text-decoration: underline;
+    }
+
+    .cardActions .cancelButton:hover:not(:disabled) {
+        color: var(--color-red-strong);
+        background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    }
+}

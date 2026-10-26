@@ -67,7 +67,7 @@ export default function AppHeader() {
 
             <nav className={styles.nav} aria-label="Navegación principal">
                 <NavLink to="/restaurante" className={navLinkClass}>
-                    Salón
+                    Restaurante
                 </NavLink>
                 {canSeeKitchen && (
                     <NavLink to="/cocina" className={navLinkClass}>
@@ -119,7 +119,7 @@ export default function AppHeader() {
                     </div>
 
                     <NavLink to="/restaurante" className={navLinkClass} onClick={closeMenu}>
-                        Salón
+                        Restaurante
                     </NavLink>
                     {canSeeKitchen && (
                         <NavLink to="/cocina" className={navLinkClass} onClick={closeMenu}>

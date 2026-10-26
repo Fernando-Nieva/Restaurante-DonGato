@@ -21,6 +21,7 @@ class AdminTableResource extends JsonResource
             'pos_x' => (float) $this->pos_x,
             'pos_y' => (float) $this->pos_y,
             'pos_z' => (float) $this->pos_z,
+            'zone' => $this->zone->value,
             'is_active' => $this->is_active,
         ];
     }

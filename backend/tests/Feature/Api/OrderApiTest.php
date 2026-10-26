@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\ReservationStatus;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Reservation;
 use App\Models\Table;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -133,6 +135,38 @@ class OrderApiTest extends TestCase
                 ],
             ])
             ->assertForbidden();
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_order_is_rejected_when_the_table_is_reserved(): void
+    {
+        $this->travelTo('2026-10-25 20:00:00');
+
+        $table = Table::factory()->create(['seats' => 4]);
+        $product = Product::factory()->create();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        Reservation::factory()->for($table)->create([
+            'customer_name' => 'Lucía',
+            'reserved_for' => '2026-10-25 20:30:00',
+            'status' => ReservationStatus::Activa,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->withToken($this->tokenFor('mozo'))
+            ->postJson('/api/orders', [
+                'table_id' => $table->id,
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('table_id')
+            ->assertJsonPath(
+                'errors.table_id.0',
+                'La mesa está reservada para Lucía a las 20:30. Sentá la reserva primero.'
+            );
 
         $this->assertDatabaseCount('orders', 0);
     }

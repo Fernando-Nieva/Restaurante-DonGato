@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Http\Requests\Admin;
+
+use App\Enums\ReservationStatus;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class ListReservationsRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()?->role === 'admin';
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public function rules(): array
+    {
+        return [
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'status' => ['nullable', Rule::enum(ReservationStatus::class)],
+            'table_id' => ['nullable', 'integer', Rule::exists('tables', 'id')],
+        ];
+    }
+}
